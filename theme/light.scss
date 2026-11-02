@@ -1,0 +1,51 @@
+/*-- scss:defaults --*/
+// "Paper" palette: the night palette inverted. Marigold is too pale for text
+// on paper, so links use a burnt ochre while fills keep the marigold.
+$paper:    #f7f3e8;
+$card:     #fffdf7;
+$sunk:     #efe9da;
+$ink:      #142449;
+$slate:    #56607a;
+$ochre:    #9a5b00;
+$marigold: #e3a21a;
+
+$web-font-path: false;
+
+$body-bg: $paper;
+$body-color: $ink;
+$primary: $ochre;
+$link-color: $ochre;
+$text-muted: $slate;
+$border-color: rgba($ink, 0.13);
+
+$navbar-bg: $paper;
+$navbar-fg: $ink;
+$navbar-hl: $ochre;
+$footer-bg: $paper;
+$footer-fg: $slate;
+
+$code-color: #8a3f00;
+$code-block-bg: $sunk;
+
+$font-family-sans-serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+$font-family-monospace: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+$headings-font-family: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+$headings-color: $ink;
+
+/*-- scss:rules --*/
+:root {
+  --am-bg: #{$paper};
+  --am-surface: #{$sunk};
+  --am-raised: #{$card};
+  --am-ink: #{$ink};
+  --am-muted: #{$slate};
+  --am-accent: #{$marigold};
+  --am-accent-ink: #{$ochre};
+  --am-on-accent: #{$ink};
+  --am-rule: #{rgba($ink, 0.13)};
+  --am-rule-strong: #{rgba($ink, 0.3)};
+  --am-dot: #{rgba($ink, 0.14)};
+  --am-glow: #{rgba($marigold, 0.22)};
+  --am-shadow: 0 1px 0 #fff inset, 0 18px 40px -26px #{rgba($ink, 0.35)};
+  color-scheme: light;
+}

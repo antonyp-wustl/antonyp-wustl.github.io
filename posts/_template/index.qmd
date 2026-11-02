@@ -1,0 +1,23 @@
+---
+title: "TITLE"
+subtitle: ""
+description: "One or two sentences shown on the home page and in the archive."
+date: DATE
+categories: [CATEGORY]
+draft: true          # delete this line (or set false) when you're ready to publish
+---
+
+Start writing here. Inline maths looks like $e^{i\pi} + 1 = 0$ and display maths like
+
+$$
+\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}.
+$$
+
+::: {#thm-main}
+## Optional name
+State a theorem here. Refer to it anywhere with @thm-main.
+:::
+
+::: {.proof}
+And prove it here. The square at the end is added automatically.
+:::

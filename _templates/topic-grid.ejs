@@ -1,0 +1,22 @@
+<%
+// Group posts by category; topics with more posts come first.
+const topics = {};
+for (const item of items) {
+  for (const c of (item.categories || [])) {
+    (topics[c] = topics[c] || []).push(item);
+  }
+}
+const names = Object.keys(topics).sort((a, b) => topics[b].length - topics[a].length || a.localeCompare(b));
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+%>
+```{=html}
+<div class="am-topic-grid">
+<% for (const name of names) { const posts = topics[name]; %>
+<a class="am-topic" href="topics.html#<%- slug(name) %>">
+  <span class="am-topic-count"><%= posts.length %></span>
+  <span class="am-topic-name"><%= name %></span>
+  <span class="am-topic-latest">Latest: <%= posts[0].title %></span>
+</a>
+<% } %>
+</div>
+```

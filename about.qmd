@@ -1,0 +1,29 @@
+---
+title: "About"
+image: profile.jpg
+image-alt: "Photo of Antony"
+toc: false
+about:
+  template: trestles
+  image-width: 14em
+  image-shape: round
+  links:
+    - icon: github
+      text: GitHub
+      href: https://github.com/antonyp-wustl
+    - icon: rss
+      text: RSS
+      href: archive.xml
+---
+
+Hi, I'm Antony. This is where I write up mathematics I find beautiful: proofs I keep coming back to, problems I'm stuck on, and the occasional picture that explains more than a page of algebra.
+
+<!-- Replace the paragraphs below with your own story. -->
+
+## Interests
+
+Number theory, analysis, and the places where they meet. I like arguments that are short once you see them and pictures that make a theorem feel inevitable.
+
+## About this site
+
+Posts are written in [Quarto](https://quarto.org) markdown with $\LaTeX$ math, rendered with KaTeX, and hosted on GitHub Pages. Each post can be cited (there's a BibTeX entry at the bottom) and every equation can be copied as TeX by hovering it.

@@ -1,0 +1,90 @@
+---
+title: "Three proofs that there are infinitely many primes"
+subtitle: "Euclid's, Euler's, and one that uses topology"
+description: "The same theorem proved three ways: by multiplication, by divergence of the harmonic series, and by a topology on the integers."
+date: 2026-10-12
+categories: [Number Theory, Proofs]
+---
+
+Few theorems have been proved as many ways as this one. Each proof below is short, but they come from very different parts of mathematics, and each one shows something new about why primes cannot run out.
+
+::: {#thm-euclid}
+## Euclid
+There are infinitely many prime numbers.
+:::
+
+## Euclid: multiply and add one
+
+::: {.proof}
+Suppose $p_1, p_2, \dots, p_k$ is any finite list of primes, and put
+$$
+N = p_1 p_2 \cdots p_k + 1.
+$$
+Since $N > 1$, it has at least one prime factor $q$. If $q$ were some $p_i$, then $q$ would divide both $N$ and $p_1 \cdots p_k$, hence their difference $1$, which is absurd. So $q$ is a prime missing from the list, and no finite list contains every prime.
+:::
+
+People often say Euclid argued by contradiction, but notice that the argument is constructive: give it any finite set of primes and it hands back a new one.^[Starting from $\{2\}$ and always taking the *smallest* new prime factor gives the Euclid–Mullin sequence $2, 3, 7, 43, 13, 53, 5, \dots$. Nobody knows whether every prime eventually appears in it.]
+
+## Euler: the harmonic series diverges
+
+Euler's proof gives much more than infinitude. It shows that the primes are *dense enough* that the sum of their reciprocals diverges.
+
+::: {#lem-euler-product}
+For any finite set of primes $S$ and any $N$ such that every integer $n \le N$ has all of its prime factors in $S$,
+$$
+\prod_{p \in S} \frac{1}{1 - 1/p} \;\ge\; \sum_{n=1}^{N} \frac{1}{n}.
+$$
+:::
+
+::: {.proof}
+Expand each factor as a geometric series, $\frac{1}{1-1/p} = 1 + \frac1p + \frac1{p^2} + \cdots$, and multiply out. Every term of the product is $1/n$ for some integer $n$ built from primes in $S$, and by unique factorisation each such $n$ appears exactly once. Every $n \le N$ is one of them, and all terms are positive.
+:::
+
+::: {.proof}
+## Proof of @thm-euclid
+If $S$ were the set of *all* primes, @lem-euler-product would hold for every $N$. The left side is a fixed finite number, but the harmonic series on the right is unbounded, since
+$$
+\sum_{n=1}^{2^m} \frac1n \;\ge\; 1 + \frac{m}{2}.
+$$
+This is a contradiction.
+:::
+
+::: {.callout-tip}
+## Going further
+Taking logarithms in Euler's argument gives $\sum_{p \le x} \frac1p \ge \log\log x - 1$, so $\sum_p 1/p$ diverges. The squares are "sparser" than the primes in this sense, since $\sum 1/n^2$ converges.
+:::
+
+## Fürstenberg: topology on $\Z$
+
+In 1955, as an undergraduate, Hillel Fürstenberg published a proof that sounds like a joke and isn't.
+
+::: {#def-evenly-spaced}
+## Evenly spaced topology
+For $a, b \in \Z$ with $b \ge 1$, let $S(a,b) = \set{a + nb : n \in \Z}$. Call a set $U \subseteq \Z$ *open* if it is a union of such progressions (the empty set included).
+:::
+
+It's quick to check this is a topology: the intersection of two progressions is either empty or another progression, with step equal to the $\lcm$ of the two steps. Two features matter:
+
+1. Every non-empty open set is infinite, since it contains a whole progression.
+2. Every $S(a,b)$ is also **closed**, because its complement is a union of the progressions $S(a+i, b)$ with $1 \le i < b$.
+
+::: {.proof}
+## Proof of @thm-euclid
+Every integer except $\pm 1$ has a prime factor, so
+$$
+\Z \setminus \set{-1, 1} \;=\; \bigcup_{p \text{ prime}} S(0, p).
+$$
+If there were finitely many primes, the right side would be a finite union of closed sets, hence closed. Then $\set{-1, 1}$ would be open. But it is non-empty and finite, which contradicts feature 1.
+:::
+
+## What each proof shows
+
+| Proof | Main idea | What you get beyond infinitude |
+|:--|:--|:--|
+| Euclid | $p_1 \cdots p_k + 1$ has a new prime factor | An explicit bound: the $(k{+}1)$-th prime is at most $p_1 \cdots p_k + 1$ |
+| Euler | Unique factorisation + divergence | $\sum 1/p = \infty$, and the start of analytic number theory |
+| Fürstenberg | Topology of arithmetic progressions | Not much, but it's a good example of switching languages |
+
+: Three proofs, side by side {.striped}
+
+Fürstenberg's proof is often described as Euclid's in disguise: strip out the topology and what's left is an argument about integers coprime to a finite product of primes. That kind of thing is common in mathematics: changing the language of a proof can make it look completely new.

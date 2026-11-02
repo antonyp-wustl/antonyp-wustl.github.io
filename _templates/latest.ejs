@@ -1,0 +1,21 @@
+```{=html}
+<div class="list am-cards">
+<% for (const item of items) { %>
+<article class="am-card" <%= metadataAttrs(item) %>>
+  <% if (item.categories && item.categories.length) { %>
+  <div class="am-chips">
+    <% for (const c of item.categories) { %><a class="am-chip" href="topics.html#<%- c.toLowerCase().replace(/[^a-z0-9]+/g, '-') %>"><%= c %></a><% } %>
+  </div>
+  <% } %>
+  <h3 class="am-card-title listing-title"><a href="<%- item.path %>"><%= item.title %></a></h3>
+  <% if (item.subtitle) { %><p class="am-card-sub"><%= item.subtitle %></p><% } %>
+  <% if (item.description) { %><p class="am-card-desc listing-description"><%= item.description %></p><% } %>
+  <div class="am-card-meta">
+    <span class="listing-date"><%= item.date %></span>
+    <% if (item['reading-time']) { %><span class="am-dot-sep"><%= item['reading-time'] %></span><% } %>
+    <span class="am-arrow" aria-hidden="true">→</span>
+  </div>
+</article>
+<% } %>
+</div>
+```

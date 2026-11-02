@@ -1,0 +1,65 @@
+---
+pagetitle: "antony-mathematics"
+description: "Notes and essays on mathematics: number theory, analysis, and whatever I'm proving this week."
+page-layout: full
+toc: false
+title-block-banner: false
+body-classes: am-home
+listing:
+  - id: latest
+    contents: posts
+    sort: "date desc"
+    max-items: 6
+    template: _templates/latest.ejs
+    fields: [title, subtitle, date, description, categories, reading-time, path]
+  - id: topic-grid
+    contents: posts
+    sort: "date desc"
+    template: _templates/topic-grid.ejs
+    fields: [title, categories, path]
+---
+
+::: {.column-screen}
+```{=html}
+<section class="ulam-hero">
+  <canvas aria-hidden="true"></canvas>
+  <div class="ulam-cursor" aria-hidden="true"></div>
+  <div class="ulam-readout" aria-live="polite"></div>
+  <div class="hero-text">
+    <p class="hero-kicker">antony-mathematics</p>
+    <h1>Antony</h1>
+    <p class="hero-lede">Number theory, analysis, and whatever I'm proving this week.</p>
+    <div class="hero-actions">
+      <a class="am-button" href="archive.html">Read the writing</a>
+      <a class="am-button am-button-ghost" href="posts/ulam-diagonals/">Why the diagonals?</a>
+    </div>
+  </div>
+  <p class="hero-hint" aria-hidden="true">Hover the spiral to factor any number</p>
+</section>
+<script src="assets/ulam.js"></script>
+```
+:::
+
+::: {.am-home-body .column-page}
+
+```{=html}
+<div class="am-section-head">
+  <h2>Latest writing</h2>
+  <a href="archive.html">All posts →</a>
+</div>
+```
+
+::: {#latest}
+:::
+
+```{=html}
+<div class="am-section-head">
+  <h2>Browse by topic</h2>
+  <a href="topics.html">All topics →</a>
+</div>
+```
+
+::: {#topic-grid}
+:::
+
+:::

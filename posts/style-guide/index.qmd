@@ -1,0 +1,120 @@
+---
+title: "Style guide: everything a post can do"
+subtitle: "A private reference. This post is a draft, so it only shows up in local preview."
+description: "Every formatting feature the site supports, with the source next to the result."
+date: 2026-11-02
+categories: [Meta]
+draft: true
+---
+
+This page is a draft, so `quarto preview` shows it but the published site never includes it. Open `posts/style-guide/index.qmd` next to this page to see the source for everything below.
+
+## Maths
+
+Inline: $\zeta(s) = \sum_{n \ge 1} n^{-s}$. Display, numbered so you can refer to it as @eq-gauss:
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2} \dd x = \sqrt{\pi}
+$$ {#eq-gauss}
+
+Hover any display equation to get a **Copy TeX** button. Site-wide macros (defined in `theme/katex-macros.html`) include `\N \Z \Q \R \C \F`, `\abs{x}`, `\norm{v}`, `\floor{x}`, `\set{\dots}`, `\inner{u}{v}`, `\dd`:
+$$
+\abs{x} \le \norm{v}, \qquad \floor{\pi} = 3, \qquad \set{n \in \Z : n > 0} = \N.
+$$
+
+Aligned equations:
+$$
+\begin{aligned}
+(a+b)^2 &= a^2 + 2ab + b^2 \\
+        &\ge 4ab.
+\end{aligned}
+$$
+
+## Theorem-like environments
+
+Each type gets its own counter, and any of them can be cross-referenced: @thm-demo, @lem-demo, @def-demo.
+
+::: {#thm-demo}
+## Optional name
+Theorems, lemmas (`#lem-`), corollaries (`#cor-`), propositions (`#prp-`), and conjectures (`#cnj-`) are set in italics with a marigold rule.
+:::
+
+::: {#lem-demo}
+A lemma.
+:::
+
+::: {#def-demo}
+## Definition style
+Definitions (`#def-`), examples (`#exm-`), and exercises (`#exr-`) are set upright.
+:::
+
+::: {#cnj-demo}
+Conjectures get a dashed rule.
+:::
+
+::: {.proof}
+Proofs end with a filled square.
+:::
+
+::: {.remark}
+Remarks are quieter.
+:::
+
+## Callouts
+
+::: {.callout-note}
+## Note
+Use `callout-note`, `callout-tip`, `callout-warning`, `callout-important`, `callout-caution`.
+:::
+
+::: {.callout-tip collapse="true"}
+## A collapsible hint (click me)
+Add `collapse="true"` to hide a hint or a spoiler until the reader asks for it.
+:::
+
+## Sidenotes and margin content
+
+Footnotes become sidenotes on wide screens.^[Like this one. On phones they appear at the bottom.] You can also put anything in the margin:
+
+::: {.column-margin}
+A margin note, written with `::: {.column-margin}`. Figures can go here too.
+:::
+
+## Code
+
+```python
+def sieve(n):
+    is_prime = [True] * (n + 1)
+    is_prime[0:2] = [False, False]
+    for p in range(2, int(n**0.5) + 1):
+        if is_prime[p]:
+            is_prime[p*p::p] = [False] * len(is_prime[p*p::p])
+    return [p for p, ok in enumerate(is_prime) if ok]
+```
+
+## Interactive widgets (Observable JS, no install needed)
+
+```{ojs}
+//| echo: true
+viewof k = Inputs.range([1, 20], {value: 6, step: 1, label: "k"})
+md`$${k}! = ${d3.range(1, k + 1).reduce((a, b) => a * b, 1).toLocaleString()}$`
+```
+
+## Images, tables, quotes
+
+Images in the post folder can be placed with `![Caption](image.png)` and are zoomable on click.
+
+| $n$ | $n!$ | $n^n$ |
+|---:|---:|---:|
+| 1 | 1 | 1 |
+| 5 | 120 | 3125 |
+| 10 | 3628800 | 10000000000 |
+
+> God made the integers; all else is the work of man.
+> — Leopold Kronecker
+
+## Wide content
+
+::: {.column-page}
+Use `.column-page` or `.column-screen` for something that needs room, like a big diagram or a wide table.
+:::

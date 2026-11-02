@@ -1,0 +1,77 @@
+project:
+  type: website
+  output-dir: _site
+  resources:
+    - CNAME            # only needed once you have a custom domain
+    - assets/
+
+website:
+  title: "antony-mathematics"
+  description: "Notes and essays on mathematics: number theory, analysis, and whatever I'm proving this week."
+  site-url: https://antonyp-wustl.github.io
+  favicon: assets/logo.svg
+  open-graph: true
+  twitter-card: true
+  back-to-top-navigation: true
+  bread-crumbs: false
+  page-navigation: false
+  search:
+    location: navbar
+    type: overlay
+    keyboard-shortcut: ["/", "s"]
+  navbar:
+    logo:
+      light: assets/logo.svg
+      dark: assets/logo.svg
+    logo-alt: "antony-mathematics home"
+    title: "antony-mathematics"
+    pinned: false
+    left:
+      - text: Writing
+        href: archive.qmd
+      - text: Topics
+        href: topics.qmd
+      - text: About
+        href: about.qmd
+    right:
+      - icon: github
+        href: https://github.com/antonyp-wustl
+        aria-label: GitHub
+      - icon: rss
+        href: archive.xml
+        aria-label: RSS feed
+  page-footer:
+    left: "© 2026 Antony"
+    center: "Press <kbd>/</kbd> to search · <kbd>t</kbd> to switch theme"
+    right:
+      - text: RSS
+        href: archive.xml
+      - text: Built with Quarto
+        href: https://quarto.org
+
+format:
+  html:
+    theme:
+      dark: [darkly, theme/dark.scss, theme/common.scss]
+      light: [flatly, theme/light.scss, theme/common.scss]
+    highlight-style:
+      dark: nord
+      light: github
+    html-math-method: katex
+    lightbox: auto
+    smooth-scroll: true
+    link-external-icon: false
+    link-external-newwindow: true
+    anchor-sections: true
+    footnotes-hover: true
+    crossrefs-hover: true
+    code-copy: true
+    code-overflow: wrap
+    include-in-header:
+      - text: |
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+      - file: theme/katex-macros.html
+    include-after-body:
+      - file: theme/site.html

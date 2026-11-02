@@ -1,0 +1,17 @@
+```{=html}
+<div class="list am-archive">
+<% for (const item of items) { %>
+<article class="am-row" <%= metadataAttrs(item) %>>
+  <span class="am-row-date listing-date"><%= item.date %></span>
+  <div class="am-row-main">
+    <h3 class="am-row-title listing-title"><a href="<%- item.path %>"><%= item.title %></a></h3>
+    <% if (item.description) { %><p class="am-row-desc listing-description"><%= item.description %></p><% } %>
+  </div>
+  <div class="am-row-side">
+    <% for (const c of (item.categories || [])) { %><button type="button" class="am-chip listing-categories" onclick="window.quartoListingCategory('<%= utils.b64encode(c) %>')"><%= c %></button><% } %>
+    <% if (item['reading-time']) { %><span class="am-row-time"><%= item['reading-time'] %></span><% } %>
+  </div>
+</article>
+<% } %>
+</div>
+```

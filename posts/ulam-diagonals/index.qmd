@@ -1,0 +1,79 @@
+---
+title: "Why the Ulam spiral has diagonals"
+subtitle: "The prime spiral on the home page, explained"
+description: "Write the integers in a square spiral and the primes line up along diagonals. Two short arguments explain most of the pattern, and an open conjecture covers the rest."
+date: 2026-11-01
+categories: [Number Theory, Visual]
+---
+
+The legend is that in 1963, sitting through a dull talk, Stanisław Ulam wrote the integers in a square spiral and circled the primes. They weren't randomly scattered. They lined up along diagonals.
+
+You can see the same spiral on [the home page](../../index.qmd): $1$ is in the centre, the numbers wind outward anticlockwise, and every prime is a filled square. Hover over it and the diagonals stand out. The pattern has two causes, one easy and one deep.
+
+## Reason 1: each diagonal has a fixed parity
+
+The spiral visits cells one step at a time, so consecutive integers are always in adjacent cells. That means parity alternates like a chessboard: if a cell at position $(x, y)$ holds $n$, then $n \equiv x + y + 1 \pmod 2$.
+
+Moving along a diagonal changes $x$ and $y$ by $\pm 1$ each, so $x + y$ keeps its parity, and **every number on a given diagonal has the same parity**. Every prime except $2$ is odd, so half of all diagonals contain no primes beyond possibly $2$. Even before looking at primes, the spiral is split into alternating diagonal stripes.
+
+## Reason 2: diagonals are quadratic polynomials
+
+Follow a diagonal outward from the centre. The four rays starting at $1$ are
+
+| Direction | Values | Formula |
+|:--|:--|:--|
+| up-right | $1, 3, 13, 31, 57, \dots$ | $4k^2 - 2k + 1$ |
+| up-left | $1, 5, 17, 37, 65, \dots$ | $4k^2 + 1$ |
+| down-left | $1, 7, 21, 43, 73, \dots$ | $4k^2 + 2k + 1$ |
+| down-right | $1, 9, 25, 49, 81, \dots$ | $(2k+1)^2$ |
+
+: The diagonal rays through $1$, for $k = 0, 1, 2, \dots$
+
+::: {#prp-quadratic}
+Along any diagonal ray of the spiral, the entries are the values of a quadratic $4k^2 + bk + c$ at $k = 0, 1, 2, \dots$
+:::
+
+::: {.proof}
+The $m$-th ring around the centre has $8m$ cells. Each step outward along a diagonal moves into the next ring, which has $8$ more cells than the previous one, so the gap between consecutive entries grows by exactly $8$ each step. A sequence with constant second difference $8$ is a quadratic with leading coefficient $8/2 = 4$.
+:::
+
+So the question "why are some diagonals full of primes?" becomes "why do some quadratic polynomials produce more primes than others?" The down-right ray has no primes at all, since its values are perfect squares. The up-left ray $4k^2 + 1 = (2k)^2 + 1$ is especially rich in primes, and there is a reason for that:
+
+::: {#lem-sum-of-squares}
+If an odd prime $p$ divides $m^2 + 1$, then $p \equiv 1 \pmod 4$.
+:::
+
+::: {.proof}
+If $p \mid m^2 + 1$ then $m^2 \equiv -1 \pmod p$, so $m$ has order exactly $4$ in $(\Z/p\Z)^\times$. By Lagrange's theorem $4 \mid p - 1$.
+:::
+
+So $4k^2 + 1$ is never divisible by $3, 7, 11, 19, \dots$, which is half of all odd primes. It avoids the most common small factors, so its values are more likely to be prime. Other diagonals have the opposite problem: $4k^2 + 2k + 1 \equiv (k+1)^2 \pmod 3$, for example, so it is divisible by $3$ whenever $k \equiv 2 \pmod 3$.
+
+::: {.callout-note}
+## What's still open
+Nobody has proved that $n^2 + 1$ is prime for infinitely many $n$. This is Landau's fourth problem from 1912 and it is still unsolved. The Hardy–Littlewood *Conjecture F* goes further and predicts how many primes each quadratic should produce, based on exactly the kind of small-prime bookkeeping in @lem-sum-of-squares. The spiral agrees with it very well, but the conjecture is unproven.
+:::
+
+## Euler's lucky polynomial
+
+The most famous diagonal belongs to Euler's polynomial $n^2 + n + 41$, which is prime for every $n$ from $0$ to $39$. Start the spiral at $41$ instead of $1$ and those forty primes lie on a single unbroken diagonal. At $n = 40$ it fails, since $40^2 + 40 + 41 = 41^2$.
+
+Try other constants $A$ in $n^2 + n + A$. The run of primes is long only for a few special values:
+
+```{ojs}
+//| echo: false
+viewof A = Inputs.range([2, 101], {value: 41, step: 1, label: "Constant A"})
+```
+
+```{ojs}
+//| echo: false
+isPrime = (m) => { if (m < 2) return false; for (let d = 2; d * d <= m; d++) if (m % d === 0) return false; return true; }
+values = d3.range(0, 60).map(n => ({n, v: n * n + n + A, prime: isPrime(n * n + n + A)}))
+run = { let r = 0; while (isPrime(r * r + r + A)) r++; return r; }
+html`<p class="am-ojs-caption">n² + n + ${A} is prime for n = 0, …, ${run - 1} — a run of <strong>${run}</strong>${run === A - 1 && A > 1 ? " (as long as possible!)" : ""}.</p>
+<div class="am-prime-grid">${values.map(d => html`<span class=${d.prime ? "is-prime" : ""} title=${`n = ${d.n}`}>${d.v}</span>`)}</div>`
+```
+
+Only $A = 2, 3, 5, 11, 17, 41$ give the longest possible run, primes for all $0 \le n \le A - 2$. These are Euler's *lucky numbers*, and there are exactly six of them. The reason is deep: a theorem of Rabinowitsch says the run is as long as possible exactly when the number field $\Q(\sqrt{1 - 4A})$ has unique factorisation, and the Baker–Heegner–Stark theorem shows there are only finitely many such fields.
+
+So the same spiral goes from a parity argument, to quadratic residues, to an open conjecture, to class numbers.

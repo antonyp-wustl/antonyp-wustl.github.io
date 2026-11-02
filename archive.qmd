@@ -1,0 +1,19 @@
+---
+title: "Writing"
+subtitle: "Every post, newest first. Filter by topic on the side, or type to search."
+page-layout: full
+toc: false
+listing:
+  id: archive
+  contents: posts
+  sort: "date desc"
+  template: _templates/archive.ejs
+  fields: [title, date, description, categories, reading-time, path]
+  categories: true
+  filter-ui: [title, description]
+  sort-ui: false
+  feed:
+    title: "antony-mathematics"
+    description: "Notes and essays on mathematics"
+    type: full
+---

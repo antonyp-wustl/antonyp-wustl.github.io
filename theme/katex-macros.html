@@ -1,0 +1,46 @@
+<script>
+// Site-wide LaTeX macros, available in every post. Add your own here.
+window.AM_MACROS = {
+  "\\N": "\\mathbb{N}",
+  "\\Z": "\\mathbb{Z}",
+  "\\Q": "\\mathbb{Q}",
+  "\\R": "\\mathbb{R}",
+  "\\C": "\\mathbb{C}",
+  "\\F": "\\mathbb{F}",
+  "\\P": "\\mathbb{P}",
+  "\\eps": "\\varepsilon",
+  "\\abs": "\\left\\lvert #1 \\right\\rvert",
+  "\\norm": "\\left\\lVert #1 \\right\\rVert",
+  "\\floor": "\\left\\lfloor #1 \\right\\rfloor",
+  "\\ceil": "\\left\\lceil #1 \\right\\rceil",
+  "\\set": "\\left\\{ #1 \\right\\}",
+  "\\inner": "\\left\\langle #1, #2 \\right\\rangle",
+  "\\dd": "\\,\\mathrm{d}",
+  "\\Res": "\\operatorname{Res}",
+  "\\lcm": "\\operatorname{lcm}",
+  "\\ord": "\\operatorname{ord}"
+};
+// Quarto calls katex.render() itself; wrap it so every call sees the macros.
+// KaTeX loads after this script, so catch the moment it assigns window.katex.
+(function () {
+  function patch(k) {
+    if (!k || k.__amPatched) return k;
+    var render = k.render;
+    k.render = function (tex, el, opts) {
+      opts = opts || {};
+      opts.macros = Object.assign(opts.macros || {}, window.AM_MACROS);
+      return render.call(this, tex, el, opts);
+    };
+    k.__amPatched = true;
+    return k;
+  }
+  if (window.katex) return patch(window.katex);
+  Object.defineProperty(window, 'katex', {
+    configurable: true,
+    get: function () { return undefined; },
+    set: function (k) {
+      Object.defineProperty(window, 'katex', { value: patch(k), writable: true, configurable: true });
+    }
+  });
+})();
+</script>

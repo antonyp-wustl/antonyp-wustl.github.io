@@ -1,0 +1,12 @@
+---
+title: "Topics"
+subtitle: "Every category on the site, with all of its posts. Add a new one just by using it in a post."
+page-layout: article
+toc: false
+listing:
+  id: topics
+  contents: posts
+  sort: "date desc"
+  template: _templates/topics.ejs
+  fields: [title, date, categories, path]
+---

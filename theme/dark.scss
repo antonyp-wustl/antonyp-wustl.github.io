@@ -1,0 +1,57 @@
+/*-- scss:defaults --*/
+// "Night" palette: Prussian blue paper, bone ink, marigold for primes and links.
+$prussian: #142449;
+$deep:     #0d1a38;
+$raised:   #1a2d57;
+$bone:     #e9e4d6;
+$fog:      #9aa3b8;
+$marigold: #f2b134;
+
+$web-font-path: false;
+
+$body-bg: $prussian;
+$body-color: $bone;
+$primary: $marigold;
+$link-color: $marigold;
+$text-muted: $fog;
+$border-color: rgba($bone, 0.14);
+
+$navbar-bg: $prussian;
+$navbar-fg: $bone;
+$navbar-hl: $marigold;
+$footer-bg: $prussian;
+$footer-fg: $fog;
+
+$code-color: $marigold;
+$code-block-bg: $deep;
+$input-bg: $deep;
+$input-color: $bone;
+$dropdown-bg: $deep;
+$dropdown-link-color: $bone;
+$list-group-bg: $deep;
+$popover-bg: $deep;
+$tooltip-bg: $deep;
+$callout-color-note: #7aa2f7;
+
+$font-family-sans-serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+$font-family-monospace: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+$headings-font-family: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+$headings-color: $bone;
+
+/*-- scss:rules --*/
+:root {
+  --am-bg: #{$prussian};
+  --am-surface: #{$deep};
+  --am-raised: #{$raised};
+  --am-ink: #{$bone};
+  --am-muted: #{$fog};
+  --am-accent: #{$marigold};
+  --am-accent-ink: #{$marigold};      // accent used as text
+  --am-on-accent: #{$deep};           // text sitting on an accent fill
+  --am-rule: #{rgba($bone, 0.14)};
+  --am-rule-strong: #{rgba($bone, 0.32)};
+  --am-dot: #{rgba($bone, 0.12)};     // composite numbers in the spiral
+  --am-glow: #{rgba($marigold, 0.16)};
+  --am-shadow: 0 1px 0 #{rgba($bone, 0.04)} inset, 0 18px 40px -24px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}

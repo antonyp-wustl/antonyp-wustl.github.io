@@ -1,0 +1,136 @@
+<script>
+// Quality-of-life features shared by every page.
+(() => {
+  const main = document.querySelector('main#quarto-document-content') || document.querySelector('main');
+  const indexEl = document.getElementById('am-post-index');
+  const isPost = !!indexEl;
+
+  // -------------------------------------------------- keyboard: "t" flips the theme
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 't' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+    if (window.quartoToggleColorScheme) {
+      e.preventDefault();
+      window.quartoToggleColorScheme();
+    }
+  });
+
+  if (!isPost || !main) return;
+
+  // Category chips in the post header open that topic on the Topics page.
+  const root = document.querySelector('meta[name="quarto:offset"]')?.content || './';
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  // (Quarto rewrites these links after load, so set them late and catch clicks too.)
+  const topicHref = (chip) => root + 'topics.html#' + slug(chip.textContent.trim());
+  const fixChips = () => document.querySelectorAll('.quarto-title .quarto-category').forEach((chip) => {
+    const a = chip.querySelector('a');
+    if (a) a.href = topicHref(chip);
+  });
+  fixChips();
+  addEventListener('load', fixChips);
+  document.addEventListener('click', (e) => {
+    const chip = e.target.closest('.quarto-title .quarto-category');
+    if (!chip) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    location.href = topicHref(chip);
+  }, true);
+
+  // -------------------------------------------------- reading progress bar
+  const bar = document.createElement('div');
+  bar.className = 'am-progress';
+  bar.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(bar);
+  const updateBar = () => {
+    const rect = main.getBoundingClientRect();
+    const total = rect.height - window.innerHeight;
+    const p = total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 1;
+    bar.style.transform = `scaleX(${p})`;
+  };
+  addEventListener('scroll', updateBar, { passive: true });
+  addEventListener('resize', updateBar);
+  updateBar();
+
+  // -------------------------------------------------- reading time in the header
+  const meta = document.querySelector('.quarto-title-meta');
+  if (meta) {
+    const body = main.cloneNode(true);
+    body.querySelectorAll('#title-block-header, #quarto-appendix, .katex-mathml, script, style, .listing-no-matching').forEach((n) => n.remove());
+    const words = (body.textContent.match(/\S+/g) || []).length;
+    const minutes = Math.max(1, Math.round(words / 200));   // maths reads slower than prose
+    const block = document.createElement('div');
+    block.innerHTML = `<div class="quarto-title-meta-heading">Reading time</div>
+      <div class="quarto-title-meta-contents"><p>${minutes} min</p></div>`;
+    meta.appendChild(block);
+  }
+
+  // -------------------------------------------------- previous / next and related posts
+  // Paths in the index are relative to the site root; quarto:offset points there.
+  const offset = root;
+  const fmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  let posts = [];
+  try {
+    posts = JSON.parse(decodeURIComponent(atob(indexEl.dataset.posts)))
+      .filter((p) => p.title)
+      .map((p) => ({ ...p, path: offset + p.path }));
+  } catch (_) {}
+  // Quarto leaves the current page out of its own listing, so slot it back in by date.
+  const me = {
+    me: true,
+    date: document.querySelector('meta[name="dcterms.date"]')?.content || '',
+    categories: [...document.querySelectorAll('.quarto-title .quarto-category')].map((c) => c.textContent.trim()),
+  };
+  posts.push(me);
+  posts.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (a.me ? -1 : b.me ? 1 : 0));
+  const i = posts.indexOf(me);
+  if (posts.length > 1) {
+    const newer = posts[i - 1], older = posts[i + 1];
+    const link = (p, cls, label) => p
+      ? `<a class="${cls}" href="${p.path}"><small>${label}</small><strong>${p.title}</strong></a>` : '';
+    const related = posts
+      .map((p, j) => ({ p, j, shared: p.categories.filter((c) => me.categories.includes(c)).length }))
+      .filter(({ j, shared }) => j !== i && shared > 0 && j !== i - 1 && j !== i + 1)
+      .sort((a, b) => b.shared - a.shared || a.j - b.j)
+      .slice(0, 4);
+
+    const end = document.createElement('nav');
+    end.className = 'am-post-end';
+    end.setAttribute('aria-label', 'More posts');
+    end.innerHTML =
+      ((newer || older) ? `<div class="am-prevnext">${link(older, 'am-prev', '← Older')}${link(newer, 'am-next', 'Newer →')}</div>` : '') +
+      (related.length ? `<div class="am-related"><h2>More on ${me.categories.filter((c) => related.some(({ p }) => p.categories.includes(c)))[0] || 'this topic'}</h2><ul>${
+        related.map(({ p }) => `<li><a href="${p.path}">${p.title}</a><span>${fmt(p.date)}</span></li>`).join('')
+      }</ul></div>` : '');
+    const appendix = main.querySelector('#quarto-appendix');
+    if (end.innerHTML) main.insertBefore(end, appendix || null);
+  }
+
+  // -------------------------------------------------- copy any display equation as TeX
+  const addCopyButtons = () => {
+    main.querySelectorAll('span.math.display:not(.am-math-wrap)').forEach((el) => {
+      const ann = el.querySelector('annotation[encoding="application/x-tex"]');
+      if (!ann) return;
+      el.classList.add('am-math-wrap');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'am-copy-tex';
+      btn.textContent = 'Copy TeX';
+      btn.title = 'Copy this equation as LaTeX';
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(ann.textContent.trim());
+          btn.textContent = 'Copied';
+          btn.classList.add('copied');
+          setTimeout(() => { btn.textContent = 'Copy TeX'; btn.classList.remove('copied'); }, 1400);
+        } catch (_) {
+          btn.textContent = 'Copy failed';
+        }
+      });
+      el.appendChild(btn);
+    });
+  };
+  if (document.readyState === 'complete') addCopyButtons();
+  else addEventListener('load', addCopyButtons);
+})();
+</script>

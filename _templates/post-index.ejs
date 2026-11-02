@@ -1,0 +1,13 @@
+<%
+// Emits every post as base64 JSON so site.js can build "previous / next" and
+// "more on this topic" links at the bottom of each post. Nothing visible here.
+const data = items.map((i) => ({
+  title: i.title,
+  path: String(i.path).replace(/\\/g, '/').replace(/^\//, '').replace(/\.(qmd|md|ipynb)$/, '.html'),
+  date: i.date,
+  categories: i.categories || [],
+}));
+%>
+```{=html}
+<div id="am-post-index" hidden data-posts="<%- utils.b64encode(JSON.stringify(data)) %>"></div>
+```

@@ -1,0 +1,10 @@
+---
+title: "404: page not found"
+toc: false
+---
+
+::: {.am-404}
+The page you were looking for doesn't exist, which is more than can be said for infinitely many primes.
+
+[Back to the home page](/) · [Browse all writing](/archive.html) · or press <kbd>/</kbd> to search.
+:::

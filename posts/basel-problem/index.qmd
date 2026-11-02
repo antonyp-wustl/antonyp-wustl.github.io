@@ -1,0 +1,104 @@
+---
+title: "The Basel problem, and where the π comes from"
+subtitle: "Why the sum of 1/n² equals π²/6"
+description: "A proof of the Basel sum using Fourier series and Parseval's identity, plus an interactive look at how slowly the partial sums converge."
+date: 2026-10-26
+categories: [Analysis, Series]
+---
+
+In 1734 Euler announced that
+$$
+\sum_{n=1}^{\infty} \frac{1}{n^2} \;=\; 1 + \frac14 + \frac19 + \frac1{16} + \cdots \;=\; \frac{\pi^2}{6}.
+$$ {#eq-basel}
+
+The problem had been open since 1650 and had beaten the Bernoullis. The surprise is the $\pi$: nothing on the left side mentions circles. Below is a proof that makes it clear where the circle comes from.
+
+## Convergence is the easy part
+
+Comparing with a telescoping sum shows that @eq-basel converges, and to something less than $2$:
+$$
+\begin{aligned}
+\sum_{n=1}^{N} \frac{1}{n^2} &\;<\; 1 + \sum_{n=2}^{N} \frac{1}{n(n-1)} \\
+&\;=\; 1 + \sum_{n=2}^{N}\left(\frac{1}{n-1} - \frac1n\right) \;=\; 2 - \frac1N.
+\end{aligned}
+$$
+
+Finding the exact value is much harder. Convergence is also slow: the tail after $N$ terms is about $1/N$, so after a hundred terms you are still off by about 0.01. Try it:
+
+```{ojs}
+//| echo: false
+viewof N = Inputs.range([1, 2000], {value: 25, step: 1, label: "Terms N"})
+```
+
+```{ojs}
+//| echo: false
+partial = { let s = 0; for (let n = 1; n <= N; n++) s += 1 / (n * n); return s; }
+target = Math.PI ** 2 / 6
+html`<div class="am-stat-row">
+  <div><span>Partial sum</span><strong>${partial.toFixed(8)}</strong></div>
+  <div><span>π²/6</span><strong>${target.toFixed(8)}</strong></div>
+  <div><span>Error × N</span><strong>${((target - partial) * N).toFixed(5)}</strong></div>
+</div>`
+```
+
+```{ojs}
+//| echo: false
+Plot.plot({
+  height: 260,
+  marginLeft: 50,
+  style: {background: "transparent", fontFamily: "Familjen Grotesk, sans-serif", fontSize: "13px"},
+  x: {label: "n", grid: false},
+  y: {label: "partial sum", domain: [1, 1.7], grid: true},
+  marks: [
+    Plot.ruleY([target], {stroke: "currentColor", strokeDasharray: "4 4", strokeOpacity: 0.6}),
+    Plot.line(d3.range(1, N + 1).map(n => ({n, s: d3.sum(d3.range(1, n + 1), k => 1 / (k * k))})),
+      {x: "n", y: "s", stroke: "#e3a21a", strokeWidth: 2.5})
+  ]
+})
+```
+
+The last number, *error × N*, approaches $1$. That follows from comparing the tail with an integral: $\sum_{n > N} n^{-2} \approx \int_N^\infty x^{-2}\dd x = 1/N$.
+
+## The proof: Fourier series and Parseval's identity
+
+The idea is to compute one integral in two different ways. The $\pi$ will come from the length of the interval $[-\pi, \pi]$.
+
+::: {#thm-parseval}
+## Parseval
+If $f \colon [-\pi, \pi] \to \R$ is square-integrable with Fourier series $\frac{a_0}{2} + \sum_{n \ge 1} \big(a_n \cos nx + b_n \sin nx\big)$, then
+$$
+\frac{1}{\pi} \int_{-\pi}^{\pi} f(x)^2 \dd x \;=\; \frac{a_0^2}{2} + \sum_{n=1}^{\infty} \left(a_n^2 + b_n^2\right).
+$$
+:::
+
+This is the Pythagorean theorem in infinitely many dimensions: the functions $\tfrac{1}{\sqrt 2}, \cos nx, \sin nx$ form an orthonormal basis for the inner product $\inner{f}{g} = \frac1\pi\int_{-\pi}^{\pi} fg$, and the squared length of a vector is the sum of the squares of its coordinates.
+
+::: {#thm-basel}
+## Euler, 1734
+$\displaystyle\sum_{n=1}^\infty \frac1{n^2} = \frac{\pi^2}{6}.$
+:::
+
+::: {.proof}
+Take $f(x) = x$ on $[-\pi, \pi]$. It's odd, so $a_n = 0$ for all $n$. Integrating by parts,
+$$
+\begin{aligned}
+b_n \;=\; \frac{1}{\pi}\int_{-\pi}^{\pi} x \sin nx \dd x
+&\;=\; \frac{2}{\pi}\left[-\frac{x\cos nx}{n}\right]_0^{\pi} + \frac{2}{\pi n}\int_0^\pi \cos nx \dd x \\
+&\;=\; \frac{2(-1)^{n+1}}{n}.
+\end{aligned}
+$$
+The left side of Parseval is $\frac1\pi \int_{-\pi}^{\pi} x^2 \dd x = \frac{2\pi^2}{3}$, so
+$$
+\frac{2\pi^2}{3} \;=\; \sum_{n=1}^{\infty} \frac{4}{n^2},
+$$
+and dividing by $4$ gives the result.
+:::
+
+::: {.callout-note}
+## Euler's original argument
+Euler compared the Taylor series of $\frac{\sin x}{x} = 1 - \frac{x^2}{6} + \cdots$ with the product $\prod_{n\ge1}\left(1 - \frac{x^2}{n^2\pi^2}\right)$ over its roots, and matched the $x^2$ coefficients. The product formula was not fully justified until Weierstrass, more than a century later, but the answer was right.
+:::
+
+## The same trick gives more sums
+
+Using $f(x) = x^2$ in Parseval gives $\zeta(4) = \sum n^{-4} = \pi^4/90$, and higher even powers of $x$ give every $\zeta(2k)$ as a rational multiple of $\pi^{2k}$. The odd values are different. Apéry proved in 1978 that $\zeta(3)$ is irrational, but no closed form for it is known.

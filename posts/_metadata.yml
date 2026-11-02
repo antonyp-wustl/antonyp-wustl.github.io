@@ -1,0 +1,41 @@
+# Options here apply to every post in this folder.
+
+# Freeze computational output so the site never re-runs old code
+# (see https://quarto.org/docs/projects/code-execution.html#freeze)
+freeze: auto
+
+author: "Antony"
+title-block-banner: false
+title-block-style: default
+toc: true
+toc-depth: 3
+toc-location: left
+toc-title: "On this page"
+reference-location: margin    # footnotes become sidenotes on wide screens
+citation-location: margin
+fig-cap-location: margin
+lightbox: auto
+code-tools: false
+
+# Adds a "Cite this post" box (with BibTeX) at the end of each post
+citation: true
+appendix-cite-as: [display, bibtex]
+
+# Hidden index used to build previous/next and related-post links
+listing:
+  id: am-post-index
+  contents:
+    - "../*/index.qmd"
+    - "!../_*/index.qmd"
+  sort: "date desc"
+  template: ../../_templates/post-index.ejs
+  date-format: iso
+  fields: [title, date, categories, reading-time, path]
+
+# Comments: create a giscus config at https://giscus.app and uncomment.
+# comments:
+#   giscus:
+#     repo: antonyp-wustl/antony-mathematics
+#     category: Comments
+#     mapping: pathname
+#     theme: transparent_dark
