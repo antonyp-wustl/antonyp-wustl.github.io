@@ -141,7 +141,7 @@ if (process.argv.includes('--home')) {
     title: 'Notes and essays on mathematics',
     kicker: 'antony-mathematics',
     chips: ['Number theory', 'Analysis', 'Proofs'],
-    footer: 'antonyp-wustl.github.io',
+    footer: 'antonyp.com',
   }), out);
   console.log('cards: wrote assets/card.png');
 } else {
@@ -157,7 +157,7 @@ if (process.argv.includes('--home')) {
       title: post.title,
       kicker: 'antony-mathematics',
       chips: post.series ? [`Series: ${post.series}`, ...post.categories].slice(0, 3) : post.categories,
-      footer: [post.date, 'antonyp-wustl.github.io'].filter(Boolean).join('  ·  '),
+      footer: [post.date, 'antonyp.com'].filter(Boolean).join('  ·  '),
     }), path.join(postsDir, slug, 'card.png'));
     n++;
   }

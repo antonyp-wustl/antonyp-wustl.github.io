@@ -4,7 +4,7 @@ My mathematics site, built with [Quarto](https://quarto.org). Posts are plain ma
 
 ## Writing from the website
 
-Go to **[/write.html](https://antonyp-wustl.github.io/write.html)**, log in, and write. The editor has a live preview with the site's own theorem boxes, maths and macros. Pressing **Publish** commits the file to this repo, and the site rebuilds itself about two minutes later. A note at the bottom right follows the rebuild and links to the page once it's live.
+Go to **[/write.html](https://antonyp.com/write.html)**, log in, and write. The editor has a live preview with the site's own theorem boxes, maths and macros. Pressing **Publish** commits the file to this repo, and the site rebuilds itself about two minutes later. A note at the bottom right follows the rebuild and links to the page once it's live.
 
 - **New post / New note / New problem** start from blank. Posts begin hidden: flip **Visible on site** before pressing the button to publish straight away.
 - **Scheduling**: leave **Visible on site** on and pick a future date. The button turns into **Schedule for …**, and the post goes live by itself that morning.
@@ -128,7 +128,7 @@ This opens the site locally and re-renders as you save. Drafts are visible here.
 
 ## Publishing
 
-The site lives at **https://antonyp-wustl.github.io** and deploys through `.github/workflows/publish.yml` whenever you push to `main`:
+The site lives at **https://antonyp.com** (the old https://antonyp-wustl.github.io address forwards there) and deploys through `.github/workflows/publish.yml` whenever you push to `main`:
 
 ```bash
 git add -A
@@ -141,6 +141,20 @@ The live site updates about a minute later; progress shows under the repo's **Ac
 Publishing also draws a share image for every post (`scripts/cards.mjs`), so links pasted into Discord, iMessage or X get a proper preview. To see them locally, run `quarto render` then `node scripts/cards.mjs`.
 
 (The repo's **Settings → Pages → Source** must stay on **GitHub Actions**. If it's ever switched back to "Deploy from a branch", GitHub publishes the raw source files instead of the built site.)
+
+**The domain.** `antonyp.com` is set in two places: **Settings → Pages → Custom domain** on GitHub (this is the one that counts when deploying with Actions), and `site-url` in `_quarto.yml` (used for feeds, share images, citations and PDF footers). The `CNAME` file just records it. DNS for the domain, at the registrar:
+
+| Type | Name | Value |
+|:--|:--|:--|
+| A | `@` | `185.199.108.153` |
+| A | `@` | `185.199.109.153` |
+| A | `@` | `185.199.110.153` |
+| A | `@` | `185.199.111.153` |
+| AAAA | `@` | `2606:50c0:8000::153` |
+| AAAA | `@` | `2606:50c0:8001::153` |
+| AAAA | `@` | `2606:50c0:8002::153` |
+| AAAA | `@` | `2606:50c0:8003::153` |
+| CNAME | `www` | `antonyp-wustl.github.io` |
 
 ## Linking between posts
 
@@ -180,7 +194,7 @@ Every published post gets a **Download PDF (LaTeX)** link, typeset properly with
 ## Optional extras
 
 - **Comments:** readers comment with their GitHub account, and comments are stored as Discussions on the repo. Turn on Discussions (repo **Settings → General → Features**), install the [giscus app](https://github.com/apps/giscus) on the repo, then uncomment the `comments:` block in `posts/_metadata.yml`.
-- **Email subscriptions:** the home page and every post end with a "Follow along" box listing the RSS feeds. For email sign-ups, make a free account at [Buttondown](https://buttondown.com), switch on its RSS-to-email option for `https://antonyp-wustl.github.io/archive.xml`, and put your Buttondown username in `BUTTONDOWN` near the middle of `theme/site.html`. The box then becomes an email form.
+- **Email subscriptions:** the home page and every post end with a "Follow along" box listing the RSS feeds. For email sign-ups, make a free account at [Buttondown](https://buttondown.com), switch on its RSS-to-email option for `https://antonyp.com/archive.xml`, and put your Buttondown username in `BUTTONDOWN` near the middle of `theme/site.html`. The box then becomes an email form.
 - **View counts:** sign up at [GoatCounter](https://www.goatcounter.com) (free, no cookies), then follow the two-line instructions in `theme/analytics.html`.
 - **Keyboard:** `/` search, `t` light/dark, `p` fold or unfold every proof on a post.
 - **Scheduled posts** go live in the 11:00 UTC run of the publish workflow. GitHub pauses scheduled workflows in repos with no activity for 60 days; pushing anything wakes it.

@@ -2,7 +2,7 @@ project:
   type: website
   output-dir: _site
   resources:
-    - CNAME            # only needed once you have a custom domain
+    - CNAME            # the custom domain, antonyp.com
     - assets/
   post-render:
     - node scripts/backlinks.mjs   # "Referenced by" lists
@@ -10,7 +10,7 @@ project:
 website:
   title: "antony-mathematics"
   description: "Notes and essays on mathematics: number theory, analysis, and whatever I'm proving this week."
-  site-url: https://antonyp-wustl.github.io
+  site-url: https://antonyp.com
   favicon: assets/logo.svg
   open-graph: true
   twitter-card:

@@ -10,7 +10,7 @@
   const { owner, repo, branch } = host.dataset;
   const API = 'https://api.github.com';
   const R = `/repos/${owner}/${repo}`;
-  const LIVE = /\.github\.io$/.test(repo) ? `https://${repo}/` : '';
+  const LIVE = host.dataset.site ? host.dataset.site.replace(/\/?$/, '/') : /\.github\.io$/.test(repo) ? `https://${repo}/` : '';
   const RAW = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/`;
   const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new?' + new URLSearchParams({
     name: 'antony-mathematics editor',
