@@ -2,6 +2,19 @@
 
 My mathematics site, built with [Quarto](https://quarto.org). Posts are plain markdown files with LaTeX maths.
 
+## Writing from the website
+
+Go to **[/write.html](https://antonyp-wustl.github.io/write.html)**, log in, and write. The editor has a live preview with the site's own theorem boxes, maths and macros. Pressing **Publish** commits the file to this repo, and the site rebuilds itself about two minutes later. A note at the bottom right follows the rebuild and links to the page once it's live.
+
+- **New post / New note** start from blank. Posts begin hidden: flip **Visible on site** before pressing the button to publish straight away.
+- **Pictures**: drop them onto the text, paste them, or use **Picture**. They're saved next to the post.
+- **Editing**: on a device you've logged in from, every post and note gets an **Edit this post** link, and the menu bar gets a **Write** link.
+- Unsent work autosaves in the browser, so closing the tab loses nothing. Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save to the site.
+
+**Setting it up on a new device (once):** the page walks you through making a GitHub key. It's a *fine-grained personal access token* limited to this repository, with *Contents: Read and write* and *Actions: Read-only*. You then choose a passphrase. The key is stored only in that browser, locked with the passphrase, and is only ever sent to GitHub. From then on, logging in just means typing the passphrase. If a device is lost, delete the token at [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens) and it stops working everywhere.
+
+The page itself is `write.qmd`, and the editor is `assets/write.js`. Everything below still works if you'd rather write in files.
+
 ## Writing a post
 
 ```powershell

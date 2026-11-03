@@ -40,6 +40,19 @@
     return doc;
   };
 
+  // -------------------------------------------------- "Write" link, on devices that have logged in to write.html
+  let writer = false;
+  try { writer = !!localStorage.getItem('am-write:auth'); } catch (_) { /* storage blocked */ }
+  const editHref = writer && page?.dataset.src ? `${root}write.html#edit=${encodeURIComponent(page.dataset.src)}` : '';
+  if (writer && !document.getElementById('am-write')) {
+    document.querySelector('.navbar-nav.me-auto')?.insertAdjacentHTML('beforeend',
+      `<li class="nav-item"><a class="nav-link" href="${root}write.html"><span class="menu-text">Write</span></a></li>`);
+  }
+  if (editHref && kind === 'note') {
+    document.querySelector('#title-block-header')?.insertAdjacentHTML('beforeend',
+      `<p class="am-edit-note"><a class="am-edit-link" href="${esc(editHref)}">Edit this note</a></p>`);
+  }
+
   // -------------------------------------------------- keyboard: "t" flips the theme, "p" folds proofs
   const keyActions = {
     t: () => window.quartoToggleColorScheme?.(),
@@ -367,6 +380,7 @@
       print.textContent = 'Print or save as PDF';
       print.addEventListener('click', () => window.print());
       tools.append(print);
+      if (editHref) tools.insertAdjacentHTML('beforeend', `<a class="am-edit-link" href="${esc(editHref)}">Edit this post</a>`);
       return tools;
     };
     const toc = document.querySelector('nav#TOC');

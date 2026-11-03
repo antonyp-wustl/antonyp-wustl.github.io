@@ -45,7 +45,11 @@ function Pandoc(doc)
     meta.pagetitle = meta.title
   end
 
+  -- Source path relative to the project, for the "Edit this page" link.
+  local f = (quarto.doc.input_file or ""):gsub("\\", "/")
+  local src = f:match("/(posts/[^/]+/index%.qmd)$") or f:match("/(notes/[^/]+%.qmd)$")
   local data = { 'data-kind="' .. kind .. '"' }
+  if src then table.insert(data, 'data-src="' .. attr(src) .. '"') end
   if str(meta.series) then table.insert(data, 'data-series="' .. attr(str(meta.series)) .. '"') end
   if truthy(meta["fold-proofs"]) then table.insert(data, 'data-fold-proofs="true"') end
   doc.blocks:insert(1, pandoc.RawBlock("html",
