@@ -1091,6 +1091,9 @@ body:has(#am-write) #title-block-header { display: none; }
 .am-w-gate .am-w-check { padding-bottom: 0; font-size: 0.92rem; font-weight: 400; }
 .am-w-github { display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.5rem 0 0.25rem; padding: 0.75rem 1.4rem; font-size: 1.02rem; }
 .am-w-github svg { flex: none; }
+.am-w-profile { align-items: center !important; }
+.am-w-avatar { width: 3.5rem; height: 3.5rem; border-radius: 50%; object-fit: cover; border: 1px solid var(--am-rule-strong); }
+.am-w-pv-avatar { display: block; width: 9rem; height: 9rem; border-radius: 50%; object-fit: cover; margin: 0 auto 1rem; }
 .am-w-more { position: relative; }
 .am-w-more summary { list-style: none; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 8px; border: 1px solid var(--am-rule-strong); font-weight: 700; }
 .am-w-more summary::-webkit-details-marker { display: none; }

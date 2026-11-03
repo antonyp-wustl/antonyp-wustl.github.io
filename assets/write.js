@@ -209,9 +209,14 @@
   const isPost = (p) => /^posts\/[^_/][^/]*\/index\.qmd$/.test(p);
   const isNote = (p) => /^notes\/[^_/][^/]*\.qmd$/.test(p);
   const isProblem = (p) => /^problems\/[^_/][^/]*\.qmd$/.test(p);
-  const kindOf = (p) => (isPost(p) ? 'post' : isNote(p) ? 'note' : 'problem');
+  // Site pages the editor can open too. They have no date, categories or draft state.
+  const PAGES = { 'about.qmd': 'About' };
+  const isPage = (p) => p in PAGES;
+  const kindOf = (p) => (isPost(p) ? 'post' : isNote(p) ? 'note' : isPage(p) ? 'page' : 'problem');
+  // How a picture is written in each kind of page (relative to the page's own folder).
+  const imgPrefix = (kind) => ({ post: '', page: 'assets/' }[kind] ?? 'media/');
   // Where pictures go: next to a post, or in notes/media/ and problems/media/.
-  const mediaDir = (d) => (d.kind === 'post' ? (d.path ? d.path.replace(/index\.qmd$/, '') : null) : `${d.kind}s/media/`);
+  const mediaDir = (d) => (d.kind === 'post' ? (d.path ? d.path.replace(/index\.qmd$/, '') : null) : d.kind === 'page' ? 'assets/' : `${d.kind}s/media/`);
   const readBlob = async (sha) => dec.decode(fromB64((await gh(`${R}/git/blobs/${sha}`)).content));
 
   async function loadEntries(force) {
@@ -220,7 +225,7 @@
     files = t.tree.filter((x) => x.type === 'blob').map((x) => ({ path: x.path, sha: x.sha }));
     let cache = {};
     try { cache = JSON.parse(local.get(KEY.cache)) || {}; } catch (_) { /* start fresh */ }
-    const wanted = files.filter((f) => isPost(f.path) || isNote(f.path) || isProblem(f.path));
+    const wanted = files.filter((f) => isPost(f.path) || isNote(f.path) || isProblem(f.path) || isPage(f.path));
     const fresh = {};
     entries = await Promise.all(wanted.map(async (f) => {
       let m = cache[f.sha];
@@ -238,7 +243,7 @@
   }
 
   // -------------------------------------------------------------- front matter
-  const ORDER = ['title', 'subtitle', 'description', 'author', 'date', 'date-modified', 'categories', 'series', 'source', 'difficulty', 'draft', 'scheduled'];
+  const ORDER = ['title', 'subtitle', 'description', 'author', 'date', 'date-modified', 'categories', 'series', 'source', 'difficulty', 'draft', 'scheduled', 'image', 'image-alt'];
   function splitDoc(text) {
     text = text.replace(/\r\n/g, '\n');
     const m = text.match(/^---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/);
@@ -254,7 +259,8 @@
       if (k in out || v === undefined || v === '' || (Array.isArray(v) && !v.length)) return;
       out[k] = v;
     });
-    const yaml = Object.keys(out).length ? jsyaml.dump(out, { schema: jsyaml.JSON_SCHEMA, lineWidth: -1, flowLevel: 1 }) : '';
+    // Lists like categories stay on one line; the About page's nested settings keep their usual layout.
+    const yaml = Object.keys(out).length ? jsyaml.dump(out, { schema: jsyaml.JSON_SCHEMA, lineWidth: -1, flowLevel: 'about' in out ? -1 : 1 }) : '';
     return `---\n${yaml}---\n\n${body.replace(/\s+$/, '')}\n`;
   }
 
@@ -609,6 +615,9 @@
       <section><h2>Posts</h2><ul class="am-w-list">${of('post').map(item).join('') || '<li class="am-w-empty">No posts yet.</li>'}</ul></section>
       <section><h2>Notebook</h2><ul class="am-w-list">${of('note').map(item).join('') || '<li class="am-w-empty">No notes yet.</li>'}</ul></section>
       <section><h2>Problems</h2><ul class="am-w-list">${of('problem').map(item).join('') || '<li class="am-w-empty">No problems yet.</li>'}</ul></section>
+      <section><h2>Pages</h2><ul class="am-w-list">${of('page').map((e) => `<li><a href="#edit=${encodeURIComponent(e.path)}">
+        <span class="am-w-item-title">${esc(PAGES[e.path])}</span>
+        <span class="am-w-item-meta">${esc(LIVE.replace(/^https?:\/\//, '') + liveUrl(e.path).slice(LIVE.length))}${pending.has(e.path) ? '<span class="am-w-badge am-w-badge-warn">Unsent changes</span>' : ''}</span></a></li>`).join('')}</ul></section>
     </div>`);
     lastBuild();
   }
@@ -681,8 +690,9 @@
   const allSeries = () => [...new Set((entries || []).map((e) => e.series).filter(Boolean))].sort();
 
   function renderEditor() {
-    const d = doc, m = d.meta, post = d.kind === 'post', problem = d.kind === 'problem';
+    const d = doc, m = d.meta, post = d.kind === 'post', problem = d.kind === 'problem', page = d.kind === 'page';
     const live = stateOf(d) === 'live';
+    const picture = (src) => (!src ? '' : /^([a-z]+:|\/\/)/i.test(src) ? src : d.images.get(src.replace(/^assets\//, ''))?.url || RAW + src);
     const slugged = d.isNew && (post || problem);
     const cats = new Set([].concat(m.categories || []));
     const chips = [...new Set([...allCategories(), ...cats])];
@@ -696,9 +706,9 @@
           <details class="am-w-more"><summary aria-label="More actions">⋯</summary><div>
             ${d.isNew ? '' : `<a href="https://github.com/${owner}/${repo}/blob/${branch}/${esc(d.path)}" target="_blank" rel="noopener">Open on GitHub ↗</a>`}
             ${!live || !LIVE ? '' : `<a href="${esc(liveUrl(d.path))}" target="_blank" rel="noopener">View on the site ↗</a>`}
-            ${live ? '<button type="button" data-act="unpublish">Take off the site…</button>' : ''}
+            ${live && !page ? '<button type="button" data-act="unpublish">Take off the site…</button>' : ''}
             ${d.isNew ? '' : '<button type="button" data-act="history">Earlier versions…</button>'}
-            <button type="button" data-act="delete">${d.isNew ? 'Discard' : 'Delete…'}</button>
+            ${page ? '' : `<button type="button" data-act="delete">${d.isNew ? 'Discard' : 'Delete…'}</button>`}
           </div></details>
         </span>
       </div>
@@ -710,19 +720,24 @@
         <input class="am-w-title" data-field="title" placeholder="${d.kind === 'note' ? 'Title (optional for notes)' : problem ? 'Problem name' : 'Title'}" value="${esc(m.title || '')}" aria-label="Title">
         ${post ? `<input class="am-w-subtitle" data-field="subtitle" placeholder="Subtitle (optional)" value="${esc(m.subtitle || '')}" aria-label="Subtitle">
         <textarea class="am-w-desc" data-field="description" rows="2" placeholder="One or two sentences for the home page and the archive" aria-label="Description">${esc(m.description || '')}</textarea>` : ''}
-        <div class="am-w-row">
+        ${page ? `<div class="am-w-row am-w-profile">
+          ${m.image ? `<img class="am-w-avatar" src="${esc(picture(m.image))}" alt="">` : ''}
+          <label class="am-w-grow">Picture description<input data-field="image-alt" value="${esc(m['image-alt'] || '')}" placeholder="What the picture shows, for screen readers"></label>
+          <button type="button" class="am-button am-button-ghost" data-act="profile">${m.image ? 'Change picture…' : 'Add a picture…'}</button>
+          <input type="file" accept="image/*" hidden data-profile>
+        </div>` : `<div class="am-w-row">
           <label title="Pick a future date to have it go live by itself that morning">Date<input type="date" data-field="date" value="${esc(m.date || today())}"></label>
           ${post ? `<label>Series<input data-field="series" list="am-w-series" value="${esc(m.series || '')}" placeholder="none"><datalist id="am-w-series">${allSeries().map((s) => `<option value="${esc(s)}">`).join('')}</datalist></label>` : ''}
           ${problem ? `<label>Source<input data-field="source" value="${esc(m.source || '')}" placeholder="IMO 2019 P1, Putnam 2003 A2…"></label>
           <label>Difficulty<select data-field="difficulty">${[1, 2, 3, 4, 5].map((n) => `<option value="${n}"${+m.difficulty === n ? ' selected' : ''}>${n} · ${['warm-up', 'easy', 'medium', 'hard', 'very hard'][n - 1]}</option>`).join('')}</select></label>` : ''}
-          ${slugged ? `<label class="am-w-grow">Address<span class="am-w-addr">/${post ? 'posts' : 'problems'}/<input data-field="slug" value="${esc(d.slug || slugify(m.title || ''))}" spellcheck="false" placeholder="from-the-title">${post ? '/' : '.html'}</span></label>` : ''}
+          ${slugged ? `<label class="am-w-grow">Address<span class="am-w-addr">/${post ? 'posts' : 'problems'}/<input data-field="slug" value="${esc(d.slug || slugify(m.title || ''))}" spellcheck="false" placeholder="from-the-title">${post ? '/' : ''}</span></label>` : ''}
           ${live ? `<label class="am-w-check"><input type="checkbox" data-field="revised"${m['date-modified'] === today() ? ' checked' : ''}>Mark as revised today</label>` : ''}
         </div>
         <div class="am-w-cats" role="group" aria-label="Categories">
           <span class="am-w-cats-label">Categories</span>
           ${chips.map((c) => `<button type="button" class="am-chip${cats.has(c) ? ' active' : ''}" data-cat="${esc(c)}" aria-pressed="${cats.has(c)}">${esc(c)}</button>`).join('')}
           <input data-field="newcat" placeholder="+ new category" aria-label="Add a category">
-        </div>
+        </div>`}
       </div>
 
       <div class="am-w-tabs" role="tablist"><button type="button" role="tab" data-tab="src" aria-selected="true">Write</button><button type="button" role="tab" data-tab="preview" aria-selected="false">Preview</button></div>
@@ -781,7 +796,7 @@
   // Two buttons: the main one puts it on the site (or schedules it, for a future date);
   // the other saves it as a draft. A live page only has "Update"; taking it down is in ⋯.
   function syncSaveButton() {
-    const state = stateOf(doc), date = $('[data-field=date]').value;
+    const state = stateOf(doc), date = $('[data-field=date]')?.value || '';
     const scheduledFor = state === 'scheduled' && (doc.original.match(/^date: ['"]?([\d-]+)/m) || [])[1];
     $('[data-act=publish]').textContent = state === 'live' ? 'Update'
       : isFuture(date) ? (scheduledFor === date ? 'Update' : `Schedule for ${fmtDate(date)}`)
@@ -805,6 +820,12 @@
     if (d.kind === 'problem') {
       m.source = val('source') || undefined;
       m.difficulty = +val('difficulty') || undefined;
+    }
+    if (d.kind === 'page') {
+      m['image-alt'] = val('image-alt') || undefined;
+      d.meta = m;
+      d.body = $('[data-field=body]').value;
+      return d;
     }
     m.date = val('date') || today();
     m.categories = $$('.am-w-cats .am-chip.active').map((b) => b.dataset.cat);
@@ -837,10 +858,12 @@
   function updatePreview() {
     if (!doc) return;
     const d = collect();
-    const dir = d.kind === 'post' ? (d.isNew ? '' : d.path.replace(/index\.qmd$/, '')) : `${d.kind}s/`;
+    const dir = d.kind === 'post' ? (d.isNew ? '' : d.path.replace(/index\.qmd$/, '')) : d.kind === 'page' ? '' : `${d.kind}s/`;
     const resolveImg = (href) => {
       if (/^([a-z]+:|\/\/|\/)/i.test(href)) return href;
-      const local = d.images.get(d.kind === 'post' ? href : href.replace(/^media\//, ''));
+      const local = d.images.get(href.slice(href.startsWith(imgPrefix(d.kind)) ? imgPrefix(d.kind).length : 0));
+      if (local) return local.url;
+      if (d.kind === 'page') return RAW + href;
       if (local) return local.url;
       return dir ? RAW + dir + href : href;
     };
@@ -848,7 +871,8 @@
     const title = d.meta.title || (d.kind === 'note' ? `Note, ${fmtDate(d.meta.date)}` : 'Untitled');
     const lvl = +d.meta.difficulty;
     try {
-      head.innerHTML = `<h1 class="title">${renderQmd(title, resolveImg).replace(/^<p>|<\/p>\s*$/g, '')}</h1>
+      head.innerHTML = d.kind === 'page' ? `${d.meta.image ? `<img class="am-w-pv-avatar" src="${esc(resolveImg(d.meta.image))}" alt="${esc(d.meta['image-alt'] || '')}">` : ''}
+        <h1 class="title">${esc(title)}</h1>` : `<h1 class="title">${renderQmd(title, resolveImg).replace(/^<p>|<\/p>\s*$/g, '')}</h1>
         ${d.meta.subtitle ? `<p class="subtitle lead">${renderQmd(d.meta.subtitle, resolveImg).replace(/^<p>|<\/p>\s*$/g, '')}</p>` : ''}
         <p class="am-w-pv-meta">${d.meta.source ? `<span class="am-problem-source">${esc(d.meta.source)}</span>` : ''}
           ${lvl ? `<span class="am-level">${'<i class="on"></i>'.repeat(lvl)}${'<i></i>'.repeat(5 - lvl)}</span>` : ''}
@@ -950,12 +974,28 @@
       const mb = (n) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`);
       ta.focus();
       ta.setSelectionRange(ta.selectionEnd, ta.selectionEnd);     // don't turn selected text into the caption
-      insert('![', `](${doc.kind === 'post' ? '' : 'media/'}${name})`, 'Describe the picture');
+      insert('![', `](${imgPrefix(doc.kind)}${name})`, 'Describe the picture');
       // Say so after the autosave note has had its turn.
       const note = f !== original ? [`Picture shrunk from ${mb(original.size)} to ${mb(f.size)}`, 'am-w-status-ok']
         : f.size > 3e6 ? [`That picture is ${mb(f.size)}. Smaller files load faster.`, 'am-w-status-warn'] : null;
       if (note) setTimeout(() => setStatus(...note), 900);
     }
+  }
+
+  // ---- the About page's picture: saved in assets/ as profile-….jpg/webp/png, sent with the next save
+  async function setProfilePicture(original) {
+    if (!original.type.startsWith('image/')) return setStatus('That isn’t a picture.', 'am-w-status-bad');
+    const f = await shrink(original);
+    const ext = (f.name.match(/\.([a-z0-9]+)$/i)?.[1] || f.type.split('/')[1] || 'png').toLowerCase().replace('jpeg', 'jpg').replace('svg+xml', 'svg');
+    const name = `profile-${Date.now().toString(36)}.${ext}`;
+    doc.images.set(name, { b64: toB64(new Uint8Array(await f.arrayBuffer())), url: URL.createObjectURL(f) });
+    collect();
+    doc.meta.image = 'assets/' + name;
+    if (doc.meta['image-alt'] && /dragon curve/i.test(doc.meta['image-alt'])) delete doc.meta['image-alt'];     // the old picture's description
+    renderEditor();
+    changed();
+    setTimeout(() => setStatus('New picture ready. Press Update to put it on the site.', 'am-w-status-ok'), 900);
+    $('[data-field=image-alt]')?.focus();
   }
 
   // ---- LaTeX: pasted LaTeX becomes the site's markdown (assets/latex.js). The original
@@ -1180,6 +1220,7 @@
     if (act === 'use-key') viewGate(null, 'key');
     if (act === 'use-github') viewGate();
     if (act === 'import') $('[data-import]').click();
+    if (act === 'profile') $('[data-profile]').click();
     if (act === 'publish') save('live');
     if (act === 'draft') save('draft');
     if (act === 'unpublish') {
@@ -1219,6 +1260,7 @@
     if (t.dataset.md === 'figure' && t.value) { const [text, sel] = FIGURES[t.value]; insertBlock(text, sel); t.value = ''; }
     if (t.dataset.file !== undefined && t.files?.length) { addImages([...t.files]); t.value = ''; }
     if (t.dataset.import !== undefined && t.files?.length) { importFile(t.files[0]); t.value = ''; }
+    if (t.dataset.profile !== undefined && t.files?.length) { setProfilePicture(t.files[0]); t.value = ''; }
     if (t.dataset.field === 'revised') changed();
   });
   host.addEventListener('keydown', (e) => {

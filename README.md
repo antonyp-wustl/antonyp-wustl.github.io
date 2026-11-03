@@ -8,6 +8,7 @@ Go to **[/write](https://antonyp.com/write)** and write. The editor has a live p
 
 - **New post / New note / New problem** start from blank. Two buttons: **Publish** puts it on the site, **Save draft** keeps it hidden. A live page has **Update**; to hide it again, use **Take off the site** in the ⋯ menu.
 - **Already written in LaTeX?** Paste it in and it's converted: `\section`, theorem/lemma/definition environments with `\label` and `\ref`, `proof`, `equation`/`align`, `itemize`/`enumerate`, `\emph`, `\footnote`, `\href` and the rest. Ctrl+Z gives you the original back. **Import a file…** (or dropping a `.tex`, `.md` or `.qmd` file on the page) turns a whole file into a new post, title and abstract included. Pictures from the `.tex` need adding again.
+- **The About page** is under **Pages** (or use **Edit this page** on the About page itself). Edit the text, press **Change picture…** for a new profile photo (saved in `assets/`), describe it for screen readers, and press **Update**.
 - **Scheduling**: pick a future date and the button turns into **Schedule for …**; the post goes live by itself that morning.
 - **Pictures**: drop them onto the text, paste them, or use **Picture**. Big photos are shrunk to 1600 px wide before uploading. They're saved next to the post.
 - **Earlier versions**: the ⋯ menu lists every saved version of a page. Pick one to load it back into the editor.

@@ -56,6 +56,12 @@
     document.querySelector('#title-block-header')?.insertAdjacentHTML('beforeend',
       `<p class="am-edit-note"><a class="am-edit-link" href="${esc(editHref)}">Edit this note</a></p>`);
   }
+  // The About page (about.qmd uses Quarto's "trestles" layout): the link goes under the links column.
+  const about = writer && document.querySelector('.quarto-about-trestles .about-entity');
+  if (about) {
+    about.insertAdjacentHTML('beforeend',
+      `<p class="am-edit-note"><a class="am-edit-link" href="${sitePage('write')}#edit=about.qmd">Edit this page</a></p>`);
+  }
 
   // -------------------------------------------------- keyboard: "t" flips the theme, "p" folds proofs
   const keyActions = {
