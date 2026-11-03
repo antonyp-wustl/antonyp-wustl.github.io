@@ -189,7 +189,22 @@ Every published post gets a **Download PDF (LaTeX)** link, typeset properly with
 | `theme/` | Colours (`dark.scss`, `light.scss`), styling (`common.scss`), macros, the site-wide script (`site.html`) a small filter for series, notes and problems (`am.lua`), and the figure shortcodes (`shortcodes.lua`) |
 | `scripts/` | Share images (`cards.mjs`), "Referenced by" lists (`backlinks.mjs`), PDFs (`pdfs.mjs`) and scheduled posts (`schedule.mjs`) |
 | `_templates/` | How post lists look on the home, Writing and Topics pages |
-| `assets/` | Logo and the spiral animation |
+| `assets/` | Logo, the spiral animation, the self-hosted fonts (`fonts/`) and libraries (`vendor/`: KaTeX, marked, js-yaml) |
+| `.well-known/security.txt` | Where to report a security problem |
+
+## Security
+
+The site loads nothing from other servers: fonts, KaTeX and the editor's libraries are copies in `assets/`, so a compromised CDN can't inject code, and visitors' browsers only ever talk to antonyp.com. The publish workflow gives each job only the permissions it needs and pins every GitHub Action to an exact commit.
+
+What only you can do, most important first:
+
+1. **GitHub account:** use a passkey or security key for two-factor sign-in, keep the recovery codes offline, and add a personal email (not just the WashU one) so you can't be locked out after graduating.
+2. **Wix account:** two-factor sign-in, auto-renew for antonyp.com, transfer lock on, WHOIS privacy on.
+3. **Verify the domain with GitHub** (your account **Settings → Pages → Add a domain**). GitHub gives you a TXT record to add in Wix; after that, nobody else can attach antonyp.com to their GitHub Pages site.
+4. **Stop email spoofing** (the domain sends no email). Add in Wix DNS: TXT `@` `v=spf1 -all`, and TXT `_dmarc` `v=DMARC1; p=reject; adkim=s; aspf=s`. If Wix offers CAA records, add CAA `@` `0 issue "letsencrypt.org"`.
+5. **Repo settings → Code security:** turn on secret scanning, push protection and private vulnerability reporting (security.txt points reporters there).
+
+Remember the repo is public: drafts are invisible on the site but readable on GitHub.
 
 ## Optional extras
 

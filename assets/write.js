@@ -336,16 +336,16 @@
     return `<span class="${cls}"${m.id ? ` id="${esc(m.id)}"` : ''}>${html}</span>`;
   }
 
-  // KaTeX: Quarto only loads it on pages that contain maths, so fetch it if it isn't here.
+  // KaTeX: Quarto only loads it on pages that contain maths, so load the site's copy if it isn't here.
   const katexReady = new Promise((resolve) => {
     if (window.katex) return resolve();
     const tag = document.querySelector('script[src*="katex"]');
     if (tag) return addEventListener('load', resolve);
     const css = document.createElement('link');
-    Object.assign(css, { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css', crossOrigin: 'anonymous',
+    Object.assign(css, { rel: 'stylesheet', href: '/assets/vendor/katex/katex.min.css',
       integrity: 'sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+' });
     const js = document.createElement('script');
-    Object.assign(js, { src: 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js', crossOrigin: 'anonymous', onload: resolve, onerror: resolve,
+    Object.assign(js, { src: '/assets/vendor/katex/katex.min.js', onload: resolve, onerror: resolve,
       integrity: 'sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg' });
     document.head.append(css, js);
   });
@@ -1083,7 +1083,7 @@
   // -------------------------------------------------------------- routing: #new=post, #new=note, #edit=<path>, #draft=<id>
   async function route() {
     if (!window.marked || !window.jsyaml || !window.crypto?.subtle) {
-      return show('<div class="am-w-center"><p class="am-w-error">The editor couldn’t load. It needs a modern browser, an https:// address, and access to cdn.jsdelivr.net.</p></div>');
+      return show('<div class="am-w-center"><p class="am-w-error">The editor couldn’t load. It needs a modern browser and an https:// address.</p></div>');
     }
     if (!token) token = tab.get(KEY.session);
     if (!token) return viewGate();

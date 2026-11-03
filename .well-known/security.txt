@@ -1,0 +1,6 @@
+# How to report a security problem with antonyp.com (RFC 9116).
+# Reports go privately to the site's owner through GitHub.
+Contact: https://github.com/antonyp-wustl/antonyp-wustl.github.io/security/advisories/new
+Expires: 2027-11-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://antonyp.com/.well-known/security.txt
