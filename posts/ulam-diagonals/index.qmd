@@ -52,7 +52,7 @@ So $4k^2 + 1$ is never divisible by $3, 7, 11, 19, \dots$, which is half of all 
 
 ::: {.callout-note}
 ## What's still open
-Nobody has proved that $n^2 + 1$ is prime for infinitely many $n$. This is Landau's fourth problem from 1912 and it is still unsolved. The Hardy–Littlewood *Conjecture F* goes further and predicts how many primes each quadratic should produce, based on exactly the kind of small-prime bookkeeping in @lem-sum-of-squares. The spiral agrees with it very well, but the conjecture is unproven.
+There are infinitely many primes ([](../infinitely-many-primes/#thm-euclid)), but nobody has proved that $n^2 + 1$ is prime for infinitely many $n$. This is Landau's fourth problem from 1912 and it is still unsolved. The Hardy–Littlewood *Conjecture F* goes further and predicts how many primes each quadratic should produce, based on exactly the kind of small-prime bookkeeping in @lem-sum-of-squares. The spiral agrees with it very well, but the conjecture is unproven.
 :::
 
 ## Euler's lucky polynomial

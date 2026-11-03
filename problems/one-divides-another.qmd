@@ -1,0 +1,23 @@
+---
+title: "One divides another"
+date: 2026-11-02
+categories: [Combinatorics, Number Theory]
+source: "Classic (Erdős)"
+difficulty: 2
+---
+
+Choose any $n + 1$ numbers from $\{1, 2, \dots, 2n\}$. Prove that one of the chosen numbers divides another.
+
+::: {.hint}
+Pigeonhole: you need $n$ boxes.
+:::
+
+::: {.hint}
+Every positive integer can be written as $2^k m$ with $m$ odd. How many odd $m$ are possible here?
+:::
+
+::: {.solution}
+Write each chosen number as $2^k m$ with $k \ge 0$ and $m$ odd. Since the number is at most $2n$, its odd part $m$ is one of the $n$ odd numbers $1, 3, \dots, 2n - 1$. There are $n + 1$ chosen numbers and only $n$ possible odd parts, so two of them share an odd part: $2^a m$ and $2^b m$ with $a < b$. Then $2^a m$ divides $2^b m$.
+:::
+
+The bound is sharp: the $n$ numbers $n + 1, n + 2, \dots, 2n$ contain no such pair, since the ratio of any two of them lies strictly between $1$ and $2$. Its easier sibling says that two of the chosen numbers are coprime: two of them must be consecutive. That's the version Erdős once put to the twelve-year-old Lajos Pósa over dinner, and he solved it on the spot.

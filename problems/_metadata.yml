@@ -1,0 +1,20 @@
+# Options for every problem. Problems are single files: problems/<name>.qmd
+# Front matter: title, date, categories, source ("IMO 1959 P1"), difficulty (1 to 5).
+# Body: the statement, then any number of ::: {.hint} blocks, then a ::: {.solution}.
+
+author: "Antony"
+toc: false
+title-block-banner: false
+citation: false
+reference-location: document
+
+# Hidden index used to build previous / next links between problems
+listing:
+  id: am-post-index
+  contents:
+    - "*.qmd"
+    - "!_*.qmd"
+  sort: "date desc"
+  template: ../_templates/post-index.ejs
+  date-format: iso
+  fields: [title, date, categories, path]

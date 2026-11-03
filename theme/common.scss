@@ -875,7 +875,138 @@ table { font-variant-numeric: tabular-nums; }
   line-height: 1.5;
 }
 
+// ---------------------------------------------------------------- problems (problems.qmd, problems/*.qmd)
+.am-level { display: inline-flex; gap: 3px; align-items: center; vertical-align: middle; }
+.am-level i { width: 0.5rem; height: 0.5rem; border-radius: 50%; border: 1.5px solid var(--am-accent); }
+.am-level i.on { background: var(--am-accent); }
+.am-chip.active .am-level i { border-color: var(--am-on-accent); }
+.am-chip.active .am-level i.on { background: var(--am-on-accent); }
+.am-problem-source { font-family: $mono; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.02em; color: var(--am-accent-ink); }
+.am-problem-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.8rem; margin-top: 0.9rem; }
+.am-problem-meta .am-chip { font-size: 0.72rem; }
+.am-problem-box {
+  margin: 1.5rem 0 2rem;
+  padding: 1.25rem 1.4rem;
+  background: var(--am-surface);
+  border: 1px solid var(--am-rule);
+  border-left: 3px solid var(--am-accent);
+  border-radius: 6px;
+  font-size: 1.12rem;
+}
+.am-problem-box > :last-child { margin-bottom: 0; }
+div.hint {
+  margin: 1rem 0;
+  padding: 0.9rem 1.1rem;
+  border: 1px dashed var(--am-rule-strong);
+  border-radius: 6px;
+  animation: am-hint-in 0.25s ease;
+}
+div.hint > :last-child { margin-bottom: 0; }
+@keyframes am-hint-in { from { opacity: 0; transform: translateY(-4px); } }
+.am-hint-label { font-family: $sans; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--am-accent-ink); margin: 0 0 0.35rem; }
+.am-hint-more { margin: 0.5rem 0 1.5rem; cursor: pointer; }
+.am-solved-toggle { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0.25rem 0 2rem; font-family: $sans; font-size: 0.92rem; font-weight: 600; color: var(--am-muted); cursor: pointer; }
+.am-solved-toggle input { accent-color: var(--am-accent); width: 1.05rem; height: 1.05rem; }
+.am-solved-toggle:has(input:checked) { color: var(--am-accent-ink); }
+
+.am-problems-controls { display: flex; flex-direction: column; gap: 0.7rem; }
+.am-problems-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.am-problems-hide { display: inline-flex; align-items: center; gap: 0.45rem; font-family: $sans; font-size: 0.9rem; color: var(--am-muted); cursor: pointer; }
+.am-problems-hide input { accent-color: var(--am-accent); }
+.am-problems-random { cursor: pointer; }
+.am-problems-count { font-family: $sans; font-size: 0.85rem; color: var(--am-muted); margin: 1.25rem 0 0.5rem; }
+.am-problems-list { display: flex; flex-direction: column; }
+.am-problem-card { padding: 1.4rem 0; border-bottom: 1px solid var(--am-rule); }
+.am-problem-card > header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; }
+.am-problem-card h2 { margin: 0.35rem 0 0.5rem; border: 0; padding: 0; font-size: 1.3rem; letter-spacing: -0.02em; }
+.am-problem-card h2 a { color: var(--am-ink) !important; text-decoration: none !important; }
+.am-problem-card h2 a:hover { color: var(--am-accent-ink) !important; }
+.am-problem-card .am-problem-statement { font-size: 1.02rem; }
+.am-problem-card .am-problem-statement > :last-child { margin-bottom: 0; }
+.am-problem-card footer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.75rem; }
+.am-problem-card footer .am-chip { font-size: 0.7rem; cursor: default; }
+.am-problem-go { margin-left: auto; font-family: $sans; font-weight: 600; font-size: 0.9rem; text-decoration: none !important; }
+.am-is-solved h2 a { color: var(--am-muted) !important; }
+.am-solved-mark { font-family: $sans; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #3fa66b; }
+.am-today { margin-bottom: 3.5rem; }
+.am-today .am-problem-card { padding: 1.25rem 1.4rem; background: var(--am-surface); border: 1px solid var(--am-rule); border-radius: 10px; }
+
+// ---------------------------------------------------------------- interactive figures (theme/shortcodes.lua)
+figure.am-plot, figure.am-embed { margin: 1.75rem 0; }
+figure.am-plot svg { display: block; width: 100%; height: auto; background: var(--am-surface); border: 1px solid var(--am-rule); border-radius: 10px; touch-action: none; }
+.am-plot-grid { stroke: var(--am-rule); stroke-width: 1; }
+.am-plot-axis { stroke: var(--am-rule-strong); stroke-width: 1.5; }
+.am-plot-tick { fill: var(--am-muted); font: 11px $mono; }
+.am-plot-curve { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+path.am-plot-c0 { stroke: var(--am-accent); }
+path.am-plot-c1 { stroke: #5aa9e6; }
+path.am-plot-c2 { stroke: #d0463b; }
+circle.am-plot-c0 { fill: var(--am-accent); }
+circle.am-plot-c1 { fill: #5aa9e6; }
+circle.am-plot-c2 { fill: #d0463b; }
+.am-plot-hover { stroke: var(--am-muted); stroke-dasharray: 3 4; }
+.am-plot-controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-top: 0.75rem; }
+.am-plot-controls:empty { display: none; }
+.am-plot-controls label { display: flex; align-items: center; gap: 0.6rem; font-family: $mono; font-size: 0.88rem; flex: 1; min-width: 12rem; }
+.am-plot-controls input { flex: 1; accent-color: var(--am-accent); }
+.am-plot-controls output { min-width: 3.5em; color: var(--am-accent-ink); }
+.am-plot-name { font-style: italic; font-family: "Newsreader", Georgia, serif; font-size: 1.1rem; }
+.am-plot-readout { font-family: $mono; font-size: 0.8rem; color: var(--am-muted); margin-top: 0.4rem; white-space: pre-wrap; min-height: 1.3em; }
+.am-plot-error { font-family: $sans; color: #d0463b; font-weight: 600; }
+figure.am-plot figcaption, figure.am-embed figcaption { font-family: $sans; font-size: 0.88rem; color: var(--am-muted); margin-top: 0.5rem; }
+figure.am-embed iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--am-rule); border-radius: 10px; background: #fff; }
+
+// ---------------------------------------------------------------- links to theorems in other posts
+a.am-xref { text-decoration-style: dotted !important; }
+.am-xref-pop {
+  position: absolute; z-index: 3000;
+  max-height: 60vh; overflow: auto;
+  padding: 0.6rem 0.9rem 0.2rem;
+  background: var(--am-raised);
+  border: 1px solid var(--am-rule-strong);
+  border-radius: 10px;
+  box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.55);
+  font-size: 0.98rem;
+}
+.am-xref-pop div.theorem { margin: 0.4rem 0 0.8rem; }
+.am-xref-from { font-family: $sans; font-size: 0.75rem; color: var(--am-muted); margin: 0; }
+.am-xref-from a { color: var(--am-accent-ink); }
+
+// ---------------------------------------------------------------- "Referenced by" (scripts/backlinks.mjs)
+.am-backlinks { margin: 3rem 0 1rem; padding-top: 1.25rem; border-top: 1px solid var(--am-rule); }
+.am-backlinks h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--am-muted); border: 0; margin: 0 0 0.6rem; }
+.am-backlinks ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.am-backlinks a { font-weight: 600; }
+.am-backlinks small { font-family: $sans; color: var(--am-muted); margin-left: 0.5rem; }
+
+// ---------------------------------------------------------------- subscribe box
+.am-subscribe {
+  margin: 2.5rem 0 1rem;
+  padding: 1.25rem 1.4rem;
+  background: var(--am-surface);
+  border: 1px solid var(--am-rule);
+  border-radius: 12px;
+  font-family: $sans;
+}
+.am-subscribe h2 { font-size: 1.1rem; margin: 0 0 0.3rem; border: 0; padding: 0; }
+.am-subscribe p { margin: 0 0 0.8rem; color: var(--am-muted); font-size: 0.92rem; }
+.am-subscribe form { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.am-subscribe input[type="email"] {
+  flex: 1; min-width: 12rem;
+  font: inherit; color: var(--am-ink); background: var(--am-raised);
+  border: 1px solid var(--am-rule-strong); border-radius: 999px; padding: 0.5rem 1rem;
+}
+.am-subscribe input[type="email"]:focus { outline: 2px solid var(--am-accent); border-color: transparent; }
+.am-subscribe .am-button { cursor: pointer; }
+.am-subscribe-alt { font-size: 0.85rem !important; margin: 0.7rem 0 0 !important; }
+
 // ---------------------------------------------------------------- Write page (write.qmd, assets/write.js)
+.am-w-history { margin: 0.75rem 0 0; padding: 0.8rem 1rem; border: 1px solid var(--am-rule-strong); border-radius: 10px; background: var(--am-surface); max-height: 22rem; overflow: auto; }
+.am-w-history-head { display: flex; justify-content: space-between; align-items: center; }
+.am-w-history .am-w-fine { margin: 0.25rem 0 0.5rem; }
+.am-w-history ol { list-style: none; padding: 0; margin: 0; }
+.am-w-history button { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.2rem 1rem; width: 100%; text-align: left; padding: 0.5rem 0.4rem; border: 0; border-top: 1px solid var(--am-rule); background: none; color: var(--am-ink); cursor: pointer; }
+.am-w-history button:hover { background: var(--am-raised); }
 .am-write { font-family: $sans; margin: 0 auto 4rem; max-width: 1500px; }
 body:has(#am-write) #title-block-header { display: none; }
 .am-write h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); margin: 0.15rem 0 0.5rem; }

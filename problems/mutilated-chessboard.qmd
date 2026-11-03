@@ -1,0 +1,19 @@
+---
+title: "The mutilated chessboard"
+date: 2026-11-01
+categories: [Combinatorics]
+source: "Classic"
+difficulty: 1
+---
+
+Two diagonally opposite corner squares are cut from an $8 \times 8$ chessboard, leaving $62$ squares. Can the rest be covered exactly by $31$ dominoes, each covering two adjacent squares?
+
+::: {.hint}
+Colour the board as a chessboard. What does a single domino always cover?
+:::
+
+::: {.solution}
+No. Every domino covers one black and one white square, so $31$ dominoes cover $31$ of each. But opposite corners have the same colour, so the cut board has $32$ squares of one colour and $30$ of the other.
+:::
+
+The colouring is an *invariant*: something every allowed move preserves. Ralph Gomory showed the converse is also neat. Remove *any* one black and one white square and a tiling always exists: the board's squares form a single closed loop, and the two holes cut it into two even-length paths.

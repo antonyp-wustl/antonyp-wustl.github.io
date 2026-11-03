@@ -1,4 +1,5 @@
-# Builds the site and publishes it to GitHub Pages on every push to main.
+# Builds the site and publishes it to GitHub Pages on every push to main,
+# and every morning publishes anything scheduled for that day.
 # (Settings → Pages → Source must be set to "GitHub Actions".)
 name: Publish site
 
@@ -6,9 +7,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "0 11 * * *"      # 11:00 UTC: early morning in the US
 
 permissions:
-  contents: read
+  contents: write              # the morning run commits newly published posts
   pages: write
   id-token: write
 
@@ -17,15 +20,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Turn scheduled posts whose date has come into normal posts (scripts/schedule.mjs).
+  schedule:
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: publish
+        run: |
+          node scripts/schedule.mjs
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "Publish scheduled posts"
+            git push
+          fi
+
   build:
+    needs: schedule
+    # The morning run only rebuilds when something went live.
+    if: github.event_name != 'schedule' || needs.schedule.outputs.published != '0'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: quarto-dev/quarto-actions/setup@v2
       - name: Render
-        run: quarto render
+        run: quarto render          # also adds "Referenced by" lists (post-render in _quarto.yml)
       - name: Draw share images
         run: node scripts/cards.mjs
+      - uses: actions/cache@v4      # PDFs of unchanged posts
+        with:
+          path: .pdf-cache
+          key: pdfs-${{ github.run_id }}
+          restore-keys: pdfs-
+      - uses: actions/cache@v4      # TeX, installed on the first run (bump v1 to reinstall)
+        with:
+          path: ~/.TinyTeX
+          key: tinytex-v1
+      - name: Typeset PDFs
+        run: node scripts/pdfs.mjs
+        continue-on-error: true     # a LaTeX problem never stops the site going up
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

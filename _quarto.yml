@@ -4,6 +4,8 @@ project:
   resources:
     - CNAME            # only needed once you have a custom domain
     - assets/
+  post-render:
+    - node scripts/backlinks.mjs   # "Referenced by" lists
 
 website:
   title: "antony-mathematics"
@@ -33,6 +35,8 @@ website:
         href: archive.qmd
       - text: Notebook
         href: notebook.qmd
+      - text: Problems
+        href: problems.qmd
       - text: Topics
         href: topics.qmd
       - text: Theorems
@@ -57,6 +61,9 @@ website:
 
 filters:
   - theme/am.lua
+
+shortcodes:
+  - theme/shortcodes.lua
 
 language:
   title-block-modified: "Revised"

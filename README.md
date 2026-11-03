@@ -6,14 +6,43 @@ My mathematics site, built with [Quarto](https://quarto.org). Posts are plain ma
 
 Go to **[/write.html](https://antonyp-wustl.github.io/write.html)**, log in, and write. The editor has a live preview with the site's own theorem boxes, maths and macros. Pressing **Publish** commits the file to this repo, and the site rebuilds itself about two minutes later. A note at the bottom right follows the rebuild and links to the page once it's live.
 
-- **New post / New note** start from blank. Posts begin hidden: flip **Visible on site** before pressing the button to publish straight away.
-- **Pictures**: drop them onto the text, paste them, or use **Picture**. They're saved next to the post.
+- **New post / New note / New problem** start from blank. Posts begin hidden: flip **Visible on site** before pressing the button to publish straight away.
+- **Scheduling**: leave **Visible on site** on and pick a future date. The button turns into **Schedule for …**, and the post goes live by itself that morning.
+- **Pictures**: drop them onto the text, paste them, or use **Picture**. Big photos are shrunk to 1600 px wide before uploading. They're saved next to the post.
+- **Earlier versions**: the ⋯ menu lists every saved version of a page. Pick one to load it back into the editor.
+- **Figures**: the **Figure…** menu inserts a slider graph, a Desmos graph or a GeoGebra applet (see below).
 - **Editing**: on a device you've logged in from, every post and note gets an **Edit this post** link, and the menu bar gets a **Write** link.
 - Unsent work autosaves in the browser, so closing the tab loses nothing. Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save to the site.
 
 **Setting it up on a new device (once):** the page walks you through making a GitHub key. It's a *fine-grained personal access token* limited to this repository, with *Contents: Read and write* and *Actions: Read-only*. You then choose a passphrase. The key is stored only in that browser, locked with the passphrase, and is only ever sent to GitHub. From then on, logging in just means typing the passphrase. If a device is lost, delete the token at [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens) and it stops working everywhere.
 
 The page itself is `write.qmd`, and the editor is `assets/write.js`. Everything below still works if you'd rather write in files.
+
+## Problems
+
+The **Problems** page is an archive of competition and puzzle problems. Readers filter it by topic and difficulty, hide the ones they've solved, or jump to a random one, and the home page shows a problem of the day. Each problem is one file in `problems/` (or use **New problem** on the Write page):
+
+```markdown
+---
+title: "An irreducible fraction"
+date: 2026-11-03
+categories: [Number Theory]
+source: "IMO 1959 P1"
+difficulty: 1          # 1 (warm-up) to 5 (very hard)
+---
+
+Prove that $\dfrac{21n + 4}{14n + 3}$ is irreducible for every natural number $n$.
+
+::: {.hint}
+A first nudge. Add as many hints as you like; readers open them one at a time.
+:::
+
+::: {.solution}
+The solution, folded until the reader opens it.
+:::
+```
+
+Everything before the first hint is the statement. Readers can tick "I've solved this"; that's remembered in their own browser.
 
 ## Writing a post
 
@@ -113,23 +142,46 @@ Publishing also draws a share image for every post (`scripts/cards.mjs`), so lin
 
 (The repo's **Settings → Pages → Source** must stay on **GitHub Actions**. If it's ever switched back to "Deploy from a branch", GitHub publishes the raw source files instead of the built site.)
 
+## Linking between posts
+
+- **A theorem in another post:** `[](../infinitely-many-primes/#thm-euclid)` with empty link text names itself ("Theorem 1 (Euclid)"), and hovering it shows the statement.
+- **Referenced by:** any link from one post, note or problem to another adds it to a "Referenced by" list at the bottom of the page it points to. `scripts/backlinks.mjs` does this after every render.
+
+## Interactive graphs
+
+```markdown
+{{< plot "sin(a*x) / x; cos(b*x)" a=1..4 b=0.5..2 x=-10..10 caption="Drag the sliders" >}}
+{{< desmos GRAPH-ID >}}
+{{< geogebra APPLET-ID >}}
+```
+
+`plot` is drawn by the site itself: separate functions with `;`, and every other single letter becomes a slider. `x=` and `y=` fix the axes. Write things like `2x`, `x^2`, `sqrt`, `ln` and `pi`. The style guide has the details.
+
+## PDFs
+
+Every published post gets a **Download PDF (LaTeX)** link, typeset properly with the site's macros. CI builds them after each push (`scripts/pdfs.mjs`) and only rebuilds posts that changed. Interactive parts become a line pointing to the web page. If LaTeX ever fails on a post, the site still goes up; that post just has no PDF until it's fixed.
+
 ## Where things live
 
 | Path | What it is |
 |:--|:--|
 | `posts/` | One folder per post |
 | `notes/` | One file per note |
+| `problems/` | One file per problem |
 | `index.qmd` | Home page (prime-spiral hero, latest posts, topics) |
-| `archive.qmd`, `notebook.qmd`, `topics.qmd`, `theorems.qmd`, `about.qmd` | The other pages |
+| `archive.qmd`, `notebook.qmd`, `problems.qmd`, `topics.qmd`, `theorems.qmd`, `about.qmd` | The other pages |
+| `write.qmd`, `assets/write.js` | The Write page |
 | `_quarto.yml` | Site settings: title, navbar, footer, links |
-| `theme/` | Colours (`dark.scss`, `light.scss`), styling (`common.scss`), macros, the site-wide script (`site.html`) and a small filter for series and notes (`am.lua`) |
-| `scripts/cards.mjs` | Draws the share images after rendering |
+| `theme/` | Colours (`dark.scss`, `light.scss`), styling (`common.scss`), macros, the site-wide script (`site.html`) a small filter for series, notes and problems (`am.lua`), and the figure shortcodes (`shortcodes.lua`) |
+| `scripts/` | Share images (`cards.mjs`), "Referenced by" lists (`backlinks.mjs`), PDFs (`pdfs.mjs`) and scheduled posts (`schedule.mjs`) |
 | `_templates/` | How post lists look on the home, Writing and Topics pages |
 | `assets/` | Logo and the spiral animation |
 
 ## Optional extras
 
 - **Comments:** readers comment with their GitHub account, and comments are stored as Discussions on the repo. Turn on Discussions (repo **Settings → General → Features**), install the [giscus app](https://github.com/apps/giscus) on the repo, then uncomment the `comments:` block in `posts/_metadata.yml`.
+- **Email subscriptions:** the home page and every post end with a "Follow along" box listing the RSS feeds. For email sign-ups, make a free account at [Buttondown](https://buttondown.com), switch on its RSS-to-email option for `https://antonyp-wustl.github.io/archive.xml`, and put your Buttondown username in `BUTTONDOWN` near the middle of `theme/site.html`. The box then becomes an email form.
 - **View counts:** sign up at [GoatCounter](https://www.goatcounter.com) (free, no cookies), then follow the two-line instructions in `theme/analytics.html`.
 - **Keyboard:** `/` search, `t` light/dark, `p` fold or unfold every proof on a post.
+- **Scheduled posts** go live in the 11:00 UTC run of the publish workflow. GitHub pauses scheduled workflows in repos with no activity for 60 days; pushing anything wakes it.
 - **Printing:** "Print or save as PDF" under a post's contents list (or Ctrl+P) gives a clean light page with every proof shown.

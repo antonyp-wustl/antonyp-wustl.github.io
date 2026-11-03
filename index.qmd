@@ -18,6 +18,15 @@ listing:
     max-items: 4
     template: _templates/notes-mini.ejs
     fields: [title, date, description, path]
+  - id: problem-of-the-day
+    contents: problems
+    sort: "date desc"
+    template: _templates/problems.ejs
+    template-params:
+      id: am-problem-today
+    date-format: iso
+    max-description-length: 600
+    fields: [title, date, categories, description, path]
   - id: topic-grid
     contents: posts
     sort: "date desc"
@@ -67,6 +76,13 @@ listing:
 
 ::: {#notebook-latest}
 :::
+
+::: {#problem-of-the-day}
+:::
+
+```{=html}
+<div id="am-today" class="am-today" hidden></div>
+```
 
 ```{=html}
 <div class="am-section-head">

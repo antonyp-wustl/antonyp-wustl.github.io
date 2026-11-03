@@ -139,6 +139,30 @@ def sieve(n):
     return [p for p, ok in enumerate(is_prime) if ok]
 ```
 
+## Linking to a theorem in another post
+
+Link to its label with empty link text, and the link names itself ("Theorem 1 (Euclid)"). Hovering it shows the statement:
+
+```markdown
+There are infinitely many primes ([](../infinitely-many-primes/#thm-euclid)).
+```
+
+That renders as: there are infinitely many primes ([](../infinitely-many-primes/#thm-euclid)). Any link from one post, note or problem to another also adds a "Referenced by" entry at the bottom of the page it points to.
+
+## Interactive graphs
+
+A graph with sliders, drawn by the site itself:
+
+```markdown
+{{</* plot "sin(a*x) / x; cos(b*x)" a=1..4 b=0.5..2 x=-10..10 caption="Drag the sliders" */>}}
+```
+
+{{< plot "sin(a*x) / x; cos(b*x)" a=1..4 b=0.5..2 x=-10..10 caption="Drag the sliders" >}}
+
+Separate several functions with `;`. Any single letter other than `x` and `y` becomes a slider (`a=1..4`, or `a=0..1..0.05` to set the step). `x=` and `y=` fix the axes; without `y=` the graph scales itself. You can write `2x`, `x^2`, `sqrt`, `ln`, `exp`, `abs`, `pi` and the trig functions.
+
+Saved graphs from elsewhere work too: `{{</* desmos ID */>}}` (the ID is the end of the graph's share link) and `{{</* geogebra ID */>}}`. In the PDF version these become a note pointing to the web page.
+
 ## Interactive widgets (Observable JS, no install needed)
 
 ```{ojs}

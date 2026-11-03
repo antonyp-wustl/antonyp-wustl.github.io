@@ -1,0 +1,27 @@
+---
+title: "An irreducible fraction"
+date: 2026-11-03
+categories: [Number Theory]
+source: "IMO 1959 P1"
+difficulty: 1
+---
+
+Prove that the fraction $\dfrac{21n + 4}{14n + 3}$ is irreducible for every natural number $n$.
+
+::: {.hint}
+A common divisor of two numbers divides every integer combination of them.
+:::
+
+::: {.hint}
+Find integers $a, b$ with $a(14n+3) + b(21n+4)$ not depending on $n$.
+:::
+
+::: {.solution}
+Let $d = \gcd(21n+4,\, 14n+3)$. Then $d$ divides
+$$
+3(14n+3) - 2(21n+4) = 42n + 9 - 42n - 8 = 1,
+$$
+so $d = 1$ and the fraction is already in lowest terms.
+:::
+
+This was the very first problem of the very first International Mathematical Olympiad, held in Romania in 1959.

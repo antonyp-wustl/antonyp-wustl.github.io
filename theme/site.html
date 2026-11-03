@@ -65,6 +65,239 @@
     if (action) { e.preventDefault(); action(); }
   });
 
+  // -------------------------------------------------- interactive graphs: {{< plot >}} from theme/shortcodes.lua
+  // A tiny expression parser (no eval): + - * / ^, implicit products like 2x, and the usual functions.
+  const FUNCS = { sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan,
+    sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh, exp: Math.exp, ln: Math.log, log: Math.log, sqrt: Math.sqrt,
+    abs: Math.abs, floor: Math.floor, ceil: Math.ceil, round: Math.round, min: Math.min, max: Math.max, sign: Math.sign };
+  const CONSTS = { pi: Math.PI, e: Math.E };
+  function compile(src, names) {
+    const toks = src.match(/\d*\.?\d+|[a-zA-Z_]\w*|\S/g) || [];
+    let i = 0;
+    const peek = () => toks[i];
+    const expect = (t) => { if (toks[i++] !== t) throw new Error(`expected “${t}”`); };
+    const expr = () => {
+      let a = term();
+      while (peek() === '+' || peek() === '-') {
+        const op = toks[i++], l = a, r = term();
+        a = op === '+' ? (v) => l(v) + r(v) : (v) => l(v) - r(v);
+      }
+      return a;
+    };
+    const term = () => {
+      let a = unary();
+      for (;;) {
+        const t = peek();
+        if (t === '*' || t === '/') {
+          i++;
+          const l = a, r = unary();
+          a = t === '*' ? (v) => l(v) * r(v) : (v) => l(v) / r(v);
+        } else if (t !== undefined && /^[\w.(]/.test(t)) {      // 2x, 3(x+1), x sin(x)
+          const l = a, r = unary();
+          a = (v) => l(v) * r(v);
+        } else return a;
+      }
+    };
+    const unary = () => {
+      if (peek() === '-') { i++; const a = unary(); return (v) => -a(v); }
+      if (peek() === '+') { i++; return unary(); }
+      const b = atom();
+      if (peek() !== '^') return b;
+      i++;
+      const p = unary();                                          // right-associative, so -x^2 = -(x^2)
+      return (v) => Math.pow(b(v), p(v));
+    };
+    const atom = () => {
+      const t = toks[i++];
+      if (t === undefined) throw new Error('it ends too soon');
+      if (t === '(') { const a = expr(); expect(')'); return a; }
+      if (/^[\d.]/.test(t)) { const n = +t; return () => n; }
+      if (names.includes(t)) return (v) => v[t];
+      if (t in CONSTS) { const c = CONSTS[t]; return () => c; }
+      const f = FUNCS[t];
+      if (!f) throw new Error(`unknown name “${t}”`);
+      expect('(');
+      const args = [expr()];
+      while (peek() === ',') { i++; args.push(expr()); }
+      expect(')');
+      return (v) => f(...args.map((g) => g(v)));
+    };
+    const f = expr();
+    if (i < toks.length) throw new Error(`unexpected “${toks[i]}”`);
+    return f;
+  }
+  const span = (s, fallback) => {
+    const m = String(s || '').match(/^(-?\d*\.?\d+)\.\.(-?\d*\.?\d+)(?:\.\.(\d*\.?\d+))?$/);
+    return m ? [+m[1], +m[2], m[3] ? +m[3] : 0] : fallback;
+  };
+  const niceStep = (rough) => {
+    const p = Math.pow(10, Math.floor(Math.log10(rough))), n = rough / p;
+    return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * p;
+  };
+  const num = (v) => String(+v.toFixed(3));
+
+  function drawPlot(fig) {
+    if (fig.dataset.ready) return;
+    fig.dataset.ready = '1';
+    const params = (fig.dataset.params || '').split(/\s+/).filter(Boolean).map((p) => {
+      const [name, r] = p.split('=');
+      const [lo, hi, step] = span(r, [0, 1, 0]);
+      return { name, lo, hi, step: step || niceStep((hi - lo) / 100), value: lo };
+    });
+    const names = ['x', ...params.map((p) => p.name)];
+    const [x0, x1] = span(fig.dataset.x, [-5, 5]);
+    const fixedY = span(fig.dataset.y, null);
+    let fns;
+    try {
+      fns = (fig.dataset.fn || '').split(';').map((s) => s.trim()).filter(Boolean).map((s) => ({ src: s, f: compile(s, names) }));
+      if (!fns.length) throw new Error('no function given');
+    } catch (e) {
+      fig.insertAdjacentHTML('afterbegin', `<p class="am-plot-error">Can’t draw “${esc(fig.dataset.fn)}”: ${esc(e.message)}.</p>`);
+      return;
+    }
+    const W = 640, H = 360, L = 34, B = 24, T = 10, Rr = 10;
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', `Graph of ${fns.map((g) => 'y = ' + g.src).join(' and ')}`);
+    const controls = document.createElement('div');
+    controls.className = 'am-plot-controls';
+    controls.innerHTML = params.map((p, k) => `<label><span class="am-plot-name">${esc(p.name)}</span>
+      <input type="range" min="${p.lo}" max="${p.hi}" step="${p.step}" value="${p.value}" data-k="${k}">
+      <output>${num(p.value)}</output></label>`).join('');
+    const readout = document.createElement('div');
+    readout.className = 'am-plot-readout';
+    readout.setAttribute('aria-live', 'off');
+    fig.prepend(svg, controls, readout);
+
+    let y0, y1, hoverX = null;
+    const env = (x) => { const v = { x }; params.forEach((p) => { v[p.name] = p.value; }); return v; };
+    const sx = (x) => L + ((x - x0) / (x1 - x0)) * (W - L - Rr);
+    const sy = (y) => H - B - ((y - y0) / (y1 - y0)) * (H - B - T);
+    const redraw = () => {
+      const N = 480, samples = fns.map((g) => {
+        const pts = [];
+        for (let k = 0; k <= N; k++) { const x = x0 + ((x1 - x0) * k) / N; pts.push([x, g.f(env(x))]); }
+        return pts;
+      });
+      if (fixedY) [y0, y1] = fixedY;
+      else {
+        const ys = samples.flat().map((p) => p[1]).filter(Number.isFinite).sort((a, b) => a - b);
+        let lo = ys[Math.floor(ys.length * 0.02)] ?? -1, hi = ys[Math.ceil(ys.length * 0.98) - 1] ?? 1;
+        if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+        const pad = (hi - lo) * 0.1;
+        [y0, y1] = [lo - pad, hi + pad];
+      }
+      const gx = niceStep((x1 - x0) / 8), gy = niceStep((y1 - y0) / 6);
+      let out = '';
+      for (let x = Math.ceil(x0 / gx) * gx; x <= x1 + 1e-9; x += gx) out += `<line class="am-plot-grid" x1="${sx(x)}" x2="${sx(x)}" y1="${T}" y2="${H - B}"/><text class="am-plot-tick" x="${sx(x)}" y="${H - 6}" text-anchor="middle">${num(x)}</text>`;
+      for (let y = Math.ceil(y0 / gy) * gy; y <= y1 + 1e-9; y += gy) out += `<line class="am-plot-grid" x1="${L}" x2="${W - Rr}" y1="${sy(y)}" y2="${sy(y)}"/><text class="am-plot-tick" x="${L - 6}" y="${sy(y) + 4}" text-anchor="end">${num(y)}</text>`;
+      if (x0 < 0 && x1 > 0) out += `<line class="am-plot-axis" x1="${sx(0)}" x2="${sx(0)}" y1="${T}" y2="${H - B}"/>`;
+      if (y0 < 0 && y1 > 0) out += `<line class="am-plot-axis" x1="${L}" x2="${W - Rr}" y1="${sy(0)}" y2="${sy(0)}"/>`;
+      const ySpan = y1 - y0;
+      samples.forEach((pts, k) => {
+        let d = '', pen = false, prev = null;
+        for (const [x, y] of pts) {
+          const ok = Number.isFinite(y) && y > y0 - 4 * ySpan && y < y1 + 4 * ySpan && !(prev !== null && Math.abs(y - prev) > 2 * ySpan);
+          if (ok) { d += `${pen ? 'L' : 'M'}${sx(x).toFixed(1)} ${sy(y).toFixed(1)}`; pen = true; } else pen = false;
+          prev = Number.isFinite(y) ? y : null;
+        }
+        out += `<path class="am-plot-curve am-plot-c${k % 3}" d="${d}"/>`;
+      });
+      if (hoverX !== null) {
+        out += `<line class="am-plot-hover" x1="${sx(hoverX)}" x2="${sx(hoverX)}" y1="${T}" y2="${H - B}"/>`;
+        fns.forEach((g, k) => {
+          const y = g.f(env(hoverX));
+          if (Number.isFinite(y) && y >= y0 && y <= y1) out += `<circle class="am-plot-c${k % 3}" cx="${sx(hoverX)}" cy="${sy(y)}" r="4"/>`;
+        });
+        readout.textContent = `x = ${num(hoverX)}   ` + fns.map((g) => `${g.src} = ${num(g.f(env(hoverX)))}`).join('   ');
+      } else readout.textContent = fns.map((g) => `y = ${g.src}`).join('   ·   ');
+      svg.innerHTML = `<defs><clipPath id="am-clip-${fig.dataset.n}"><rect x="${L}" y="${T}" width="${W - L - Rr}" height="${H - B - T}"/></clipPath></defs>${out}`
+        .replace(/<path /g, `<path clip-path="url(#am-clip-${fig.dataset.n})" `);
+    };
+    controls.addEventListener('input', (e) => {
+      const k = e.target.dataset.k;
+      if (k === undefined) return;
+      params[k].value = +e.target.value;
+      e.target.nextElementSibling.textContent = num(params[k].value);
+      redraw();
+    });
+    svg.addEventListener('pointermove', (e) => {
+      const r = svg.getBoundingClientRect();
+      const px = ((e.clientX - r.left) / r.width) * W;
+      hoverX = px < L || px > W - Rr ? null : x0 + ((px - L) / (W - L - Rr)) * (x1 - x0);
+      redraw();
+    });
+    svg.addEventListener('pointerleave', () => { hoverX = null; redraw(); });
+    redraw();
+  }
+  let figureCount = 0;
+  const renderFigures = (scope) => scope.querySelectorAll('figure.am-plot:not([data-ready])').forEach((f) => {
+    f.dataset.n = ++figureCount;
+    drawPlot(f);
+  });
+  window.AM = { ...(window.AM || {}), renderFigures };
+  if (main) renderFigures(main);
+
+  // -------------------------------------------------- a link to a theorem in another post shows it on hover
+  // Write [](../other-post/#thm-name) and the link text fills itself in ("Theorem 2 (Name)").
+  const XREF = /^#(thm|lem|cor|prp|cnj|def|exm|exr)-[\w-]+$/;
+  const pages = new Map();
+  const getPage = (url) => {
+    if (!pages.has(url)) pages.set(url, fetchPage(url).catch(() => null));
+    return pages.get(url);
+  };
+  const samePage = (u) => u.pathname.replace(/index\.html$/, '') === location.pathname.replace(/index\.html$/, '');
+  let pop = null, popTimer = 0;
+  const hidePop = () => { clearTimeout(popTimer); popTimer = setTimeout(() => { pop?.remove(); pop = null; }, 180); };
+  function crossRefs(scope) {
+    scope.querySelectorAll('a[href*="#"]').forEach((a) => {
+      if (a.dataset.amXref) return;
+      const url = new URL(a.getAttribute('href'), location.href);
+      if (url.origin !== location.origin || !XREF.test(url.hash) || samePage(url)) return;
+      a.dataset.amXref = '1';
+      a.classList.add('am-xref');
+      const id = url.hash.slice(1), pageUrl = url.href.split('#')[0];
+      const find = async () => {
+        const doc = await getPage(pageUrl);
+        const el = doc?.getElementById(id);
+        return el && { el, title: doc.querySelector('h1.title')?.textContent.trim() || '' };
+      };
+      if (!a.textContent.trim()) {
+        a.textContent = id;
+        find().then((r) => { if (r) a.textContent = r.el.querySelector('.theorem-title strong')?.textContent.trim() || id; });
+      }
+      const show = async () => {
+        clearTimeout(popTimer);
+        const r = await find();
+        if (!r || !(a.matches(':hover') || document.activeElement === a)) return;
+        pop?.remove();
+        pop = document.createElement('div');
+        pop.className = 'am-xref-pop';
+        pop.setAttribute('role', 'tooltip');
+        pop.innerHTML = `<p class="am-xref-from">From <a href="${pageUrl}">${esc(r.title)}</a></p>`;
+        const clone = r.el.cloneNode(true);
+        clone.removeAttribute('id');
+        pop.append(clone);
+        document.body.append(pop);
+        typeset(pop);
+        const box = a.getBoundingClientRect(), w = Math.min(460, innerWidth - 24);
+        pop.style.width = w + 'px';
+        pop.style.left = Math.max(12, Math.min(innerWidth - w - 12, box.left + box.width / 2 - w / 2)) + scrollX + 'px';
+        const below = box.bottom + 10 + pop.offsetHeight < innerHeight;
+        pop.style.top = (below ? box.bottom + 10 : box.top - 10 - pop.offsetHeight) + scrollY + 'px';
+        pop.addEventListener('mouseenter', () => clearTimeout(popTimer));
+        pop.addEventListener('mouseleave', hidePop);
+      };
+      a.addEventListener('mouseenter', () => { popTimer = setTimeout(show, 120); });
+      a.addEventListener('focus', show);
+      a.addEventListener('mouseleave', hidePop);
+      a.addEventListener('blur', hidePop);
+    });
+  }
+  if (main) onLoad(() => crossRefs(main));
+
   // -------------------------------------------------- Theorems page
   const resultsIndex = document.getElementById('am-results-index');
   if (resultsIndex) buildResults(readIndex(resultsIndex), document.getElementById('am-results'));
@@ -198,9 +431,122 @@
     host.append(stream, more);
   }
 
+  // -------------------------------------------------- Problems page and problem of the day
+  // Solved problems are remembered in this browser only.
+  const problemKey = (path) => new URL(path, location.href).pathname.replace(/(\/index)?\.html$/, '');
+  const solved = () => { try { return new Set(JSON.parse(localStorage.getItem('am-solved')) || []); } catch (_) { return new Set(); } };
+  const setSolved = (key, on) => {
+    const s = solved();
+    if (on) s.add(key); else s.delete(key);
+    try { localStorage.setItem('am-solved', JSON.stringify([...s])); } catch (_) { /* storage blocked */ }
+  };
+  const level = (d) => (d ? `<span class="am-level" role="img" aria-label="Difficulty ${d} of 5" title="Difficulty ${d} of 5">${'<i class="on"></i>'.repeat(d)}${'<i></i>'.repeat(5 - d)}</span>` : '');
+  const problemCard = (p, done) => `<article class="am-problem-card${done ? ' am-is-solved' : ''}">
+      <header>${p.source ? `<span class="am-problem-source">${esc(p.source)}</span>` : ''}${level(p.difficulty)}${done ? '<span class="am-solved-mark">Solved</span>' : ''}</header>
+      <h2><a href="${p.path}">${esc(p.title)}</a></h2>
+      <div class="am-problem-statement">${p.statement}</div>
+      <footer>${p.categories.map((c) => `<span class="am-chip">${esc(c)}</span>`).join('')}<a class="am-problem-go" href="${p.path}">Try it →</a></footer>
+    </article>`;
+
+  const readProblems = (el) => readIndex(el).map((p, k) => ({ ...p, statement: el.querySelector(`[data-statement="${k}"]`)?.innerHTML.trim() || '' }));
+  const problemsIndex = document.getElementById('am-problems-index');
+  if (problemsIndex) buildProblems(readProblems(problemsIndex), document.getElementById('am-problems'));
+
+  function buildProblems(list, host) {
+    if (!host || !list.length) return;
+    const topics = [...new Set(list.flatMap((p) => p.categories))].sort();
+    const levels = [...new Set(list.map((p) => p.difficulty).filter(Boolean))].sort();
+    const want = new URLSearchParams(location.search).get('topic');
+    const state = { q: '', topic: topics.find((t) => slug(t) === slug(want || '')) || '', level: 0, hideSolved: false };
+    host.innerHTML = `<div class="am-results-controls am-problems-controls">
+        <input type="search" class="am-results-search" placeholder="Search problems, sources, topics…" aria-label="Search problems">
+        <div class="am-results-types" data-group="topic"><button type="button" class="am-chip" data-topic="">All topics</button>${topics.map((t) => `<button type="button" class="am-chip" data-topic="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+        <div class="am-results-types" data-group="level"><button type="button" class="am-chip" data-level="0">Any level</button>${levels.map((l) => `<button type="button" class="am-chip" data-level="${l}">${level(l)}</button>`).join('')}</div>
+        <div class="am-problems-actions">
+          <label class="am-problems-hide"><input type="checkbox"> Hide the ones I’ve solved</label>
+          <button type="button" class="am-button am-problems-random">Random problem</button>
+        </div>
+      </div>
+      <p class="am-problems-count" aria-live="polite"></p>
+      <div class="am-problems-list"></div>`;
+    const out = host.querySelector('.am-problems-list'), count = host.querySelector('.am-problems-count');
+    const matches = () => {
+      const done = solved();
+      const q = state.q.toLowerCase();
+      return list.filter((p) => (!state.topic || p.categories.includes(state.topic))
+        && (!state.level || p.difficulty === state.level)
+        && (!state.hideSolved || !done.has(problemKey(p.path)))
+        && (!q || [p.title, p.source, ...p.categories, p.statement.replace(/<[^>]+>/g, '')].join(' ').toLowerCase().includes(q)));
+    };
+    const draw = () => {
+      const done = solved(), shown = matches();
+      host.querySelectorAll('[data-topic]').forEach((b) => b.classList.toggle('active', b.dataset.topic === state.topic));
+      host.querySelectorAll('[data-level]').forEach((b) => b.classList.toggle('active', +b.dataset.level === state.level));
+      const nSolved = list.filter((p) => done.has(problemKey(p.path))).length;
+      count.textContent = `${shown.length} of ${list.length} problems${nSolved ? ` · you’ve solved ${nSolved}` : ''}`;
+      out.innerHTML = shown.map((p) => problemCard(p, done.has(problemKey(p.path)))).join('') || '<p class="am-empty">No problems match.</p>';
+      if (document.readyState !== 'loading') typeset(out);   // before that, Quarto's own KaTeX pass does it
+    };
+    host.querySelector('input[type=search]').addEventListener('input', (e) => { state.q = e.target.value; draw(); });
+    host.querySelector('.am-problems-hide input').addEventListener('change', (e) => { state.hideSolved = e.target.checked; draw(); });
+    host.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-topic], [data-level]');
+      if (b?.dataset.topic !== undefined) state.topic = b.dataset.topic;
+      else if (b) state.level = +b.dataset.level;
+      if (b) draw();
+    });
+    host.querySelector('.am-problems-random').addEventListener('click', () => {
+      const done = solved(), pool = matches();
+      const fresh = pool.filter((p) => !done.has(problemKey(p.path)));
+      const from = fresh.length ? fresh : pool.length ? pool : list;
+      location.href = from[Math.floor(Math.random() * from.length)].path;
+    });
+    host.querySelector('.am-fallback-list')?.remove();
+    draw();
+  }
+
+  // The same problem all day, a different one tomorrow.
+  const todayIndex = document.getElementById('am-problem-today');
+  const todayHost = document.getElementById('am-today');
+  if (todayIndex && todayHost) {
+    const list = readProblems(todayIndex);
+    if (list.length) {
+      const d = new Date();
+      const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
+      const p = list[day % list.length];
+      todayHost.innerHTML = `<div class="am-section-head"><h2>Problem of the day</h2><a href="${root}problems.html">All problems →</a></div>
+        ${problemCard(p, solved().has(problemKey(p.path)))}`;
+      todayHost.hidden = false;
+    }
+  }
+
+  // -------------------------------------------------- subscribe box (home page and the end of posts)
+  // For email: make a free account at buttondown.com, turn on its RSS-to-email for
+  // https://antonyp-wustl.github.io/archive.xml, and put the username here. Until then the box offers the feeds.
+  const BUTTONDOWN = '';
+  const subscribeBox = () => {
+    const box = document.createElement('div');   // not <aside>: Quarto moves those into the margin
+    box.className = 'am-subscribe';
+    const feeds = `<a href="${root}archive.xml">posts</a> · <a href="${root}notebook.xml">notebook</a> · <a href="${root}problems.xml">problems</a>`;
+    box.innerHTML = BUTTONDOWN
+      ? `<h2>Get new posts by email</h2>
+        <p>One short email when something new goes up. Unsubscribe any time.</p>
+        <form action="https://buttondown.com/api/emails/embed-subscribe/${encodeURIComponent(BUTTONDOWN)}" method="post" target="_blank">
+          <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
+          <input type="hidden" name="embed" value="1">
+          <button class="am-button" type="submit">Subscribe</button>
+        </form>
+        <p class="am-subscribe-alt">Or use a feed reader: ${feeds}.</p>`
+      : `<h2>Follow along</h2>
+        <p>New posts, notes and problems show up in any feed reader (Feedly, NetNewsWire, Inoreader…).</p>
+        <p class="am-subscribe-alt">Feeds: ${feeds}.</p>`;
+    return box;
+  };
+  if (todayHost) todayHost.after(subscribeBox());
+
   if (!page || !main) return;
 
-  // ================================================== posts and notes only from here
+  // ================================================== posts, notes and problems from here
 
   // Category chips in the header open that topic on the Topics page.
   // (Quarto rewrites these links after load, so set them late and catch clicks too.)
@@ -219,6 +565,59 @@
       e.stopImmediatePropagation();
       location.href = topicHref(chip);
     }, true);
+  }
+
+  // -------------------------------------------------- problem pages: source, level, hints one at a time, "solved"
+  if (kind === 'problem') {
+    const header = main.querySelector('#title-block-header');
+    const chips = [...document.querySelectorAll('.quarto-title .quarto-category')].map((c) => c.textContent.trim());
+    document.querySelector('.quarto-title .quarto-categories')?.remove();
+    header?.querySelector('.quarto-title')?.insertAdjacentHTML('beforeend', `<div class="am-problem-meta">
+        ${page.dataset.source ? `<span class="am-problem-source">${esc(page.dataset.source)}</span>` : ''}${level(+page.dataset.difficulty || 0)}
+        ${chips.map((c) => `<a class="am-chip" href="${root}problems.html?topic=${encodeURIComponent(c)}">${esc(c)}</a>`).join('')}
+      </div>`);
+
+    // Everything before the first hint or solution is the statement.
+    const stop = main.querySelector(':scope > div.hint, :scope > div.solution, :scope > div.proof');
+    const statement = document.createElement('div');
+    statement.className = 'am-problem-statement am-problem-box';
+    let n = header ? header.nextSibling : main.firstChild;
+    const take = [];
+    for (; n && n !== stop; n = n.nextSibling) {
+      if (n.nodeType === 1 && (n.id === 'am-page' || n.tagName === 'SCRIPT' || n.hidden || n.matches('nav, .am-series'))) continue;
+      take.push(n);
+    }
+    if (take.some((x) => x.textContent.trim())) {
+      statement.append(...take);
+      if (header) header.after(statement); else main.prepend(statement);
+    }
+
+    const hints = [...main.querySelectorAll('div.hint')];
+    if (hints.length) {
+      hints.forEach((h, k) => {
+        h.hidden = true;
+        h.insertAdjacentHTML('afterbegin', `<p class="am-hint-label">Hint ${hints.length > 1 ? k + 1 : ''}</p>`);
+      });
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'am-button am-button-ghost am-hint-more';
+      let shown = 0;
+      const label = () => { more.textContent = hints.length === 1 ? 'Show a hint' : shown ? `Show hint ${shown + 1} of ${hints.length}` : `Show a hint (${hints.length} available)`; };
+      more.addEventListener('click', () => {
+        hints[shown++].hidden = false;
+        if (shown >= hints.length) more.remove(); else label();
+      });
+      label();
+      hints[hints.length - 1].after(more);
+    }
+
+    const key = problemKey(location.pathname);
+    const mark = document.createElement('label');
+    mark.className = 'am-solved-toggle';
+    mark.innerHTML = `<input type="checkbox"${solved().has(key) ? ' checked' : ''}> I’ve solved this`;
+    mark.querySelector('input').addEventListener('change', (e) => setSolved(key, e.target.checked));
+    const sol = main.querySelector('div.solution');
+    (sol || main.querySelector('.am-hint-more') || statement).after(mark);
   }
 
   // -------------------------------------------------- reading progress bar
@@ -307,6 +706,7 @@
     const appendix = main.querySelector('#quarto-appendix');
     if (end.innerHTML) main.insertBefore(end, appendix || null);
   }
+  if (kind === 'post') main.insertBefore(subscribeBox(), main.querySelector('#quarto-appendix'));
 
   // -------------------------------------------------- foldable proofs and solutions
   // Every proof gets a toggle. ::: {.proof collapse="true"} starts folded, solutions start
@@ -380,6 +780,9 @@
       print.textContent = 'Print or save as PDF';
       print.addEventListener('click', () => window.print());
       tools.append(print);
+      // A typeset PDF, when CI built one (scripts/pdfs.mjs adds the meta tag).
+      const pdf = document.querySelector('meta[name="am-pdf"]')?.content;
+      if (pdf) tools.insertAdjacentHTML('beforeend', `<a class="am-edit-link" href="${esc(pdf)}" download>Download PDF (LaTeX)</a>`);
       if (editHref) tools.insertAdjacentHTML('beforeend', `<a class="am-edit-link" href="${esc(editHref)}">Edit this post</a>`);
       return tools;
     };

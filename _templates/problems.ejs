@@ -1,0 +1,24 @@
+<%
+// Problem index as base64 JSON for theme/site.html (the Problems page and problem of the day).
+const id = (templateParams && templateParams.id) || 'am-problems-index';
+const data = items.map((i) => ({
+  title: i.title || null,
+  path: String(i.path).replace(/\\/g, '/').replace(/^\//, '').replace(/\.(qmd|md|ipynb)$/, '.html'),
+  date: i.date,
+  categories: i.categories || [],
+  source: i.source || null,
+  difficulty: Number(i.difficulty) || null,
+}));
+%>
+```{=html}
+<div id="<%- id %>" hidden data-posts="<%- utils.b64encode(JSON.stringify(data)) %>">
+<%
+// Statements stay as HTML: Quarto fills descriptions in after this template runs.
+for (let k = 0; k < items.length; k++) { %>  <div data-statement="<%- k %>"><%= items[k].description || '' %></div>
+<% } %></div>
+<% if (templateParams && templateParams.fallback) { %>
+<ol class="am-fallback-list">
+<% for (const i of items) { %>  <li><a href="<%- i.path %>"><%= i.title %></a> <span><%= i.source || '' %></span></li>
+<% } %></ol>
+<% } %>
+```

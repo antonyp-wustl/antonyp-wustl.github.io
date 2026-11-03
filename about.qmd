@@ -28,6 +28,6 @@ Hi, I'm Antony, an undergraduate studying mathematics. This is where I write up 
 
 ## About this site
 
-Longer pieces live under [Writing](archive.qmd) and quick ones in the [Notebook](notebook.qmd). Every definition and theorem from every post is collected on the [Theorems](theorems.qmd) page.
+Longer pieces live under [Writing](archive.qmd), quick ones in the [Notebook](notebook.qmd), and problems to try (with hints) under [Problems](problems.qmd). Every definition and theorem from every post is collected on the [Theorems](theorems.qmd) page.
 
 The picture is a dragon curve. Fold a strip of paper in half eight times, always in the same direction, then open it out so every crease makes a right angle: this is the shape you get. The curve never crosses itself, and four copies turned about a common point fit together to cover the whole plane.

@@ -123,9 +123,13 @@
 
   // -------------------------------------------------------------- repo contents
   let files = null;                       // every file in the repo: [{ path, sha }]
-  let entries = null;                     // posts and notes with their front matter
+  let entries = null;                     // posts, notes and problems with their front matter
   const isPost = (p) => /^posts\/[^_/][^/]*\/index\.qmd$/.test(p);
   const isNote = (p) => /^notes\/[^_/][^/]*\.qmd$/.test(p);
+  const isProblem = (p) => /^problems\/[^_/][^/]*\.qmd$/.test(p);
+  const kindOf = (p) => (isPost(p) ? 'post' : isNote(p) ? 'note' : 'problem');
+  // Where pictures go: next to a post, or in notes/media/ and problems/media/.
+  const mediaDir = (d) => (d.kind === 'post' ? (d.path ? d.path.replace(/index\.qmd$/, '') : null) : `${d.kind}s/media/`);
   const readBlob = async (sha) => dec.decode(fromB64((await gh(`${R}/git/blobs/${sha}`)).content));
 
   async function loadEntries(force) {
@@ -134,16 +138,17 @@
     files = t.tree.filter((x) => x.type === 'blob').map((x) => ({ path: x.path, sha: x.sha }));
     let cache = {};
     try { cache = JSON.parse(local.get(KEY.cache)) || {}; } catch (_) { /* start fresh */ }
-    const wanted = files.filter((f) => isPost(f.path) || isNote(f.path));
+    const wanted = files.filter((f) => isPost(f.path) || isNote(f.path) || isProblem(f.path));
     const fresh = {};
     entries = await Promise.all(wanted.map(async (f) => {
       let m = cache[f.sha];
-      if (!m) {
+      if (!m || !('v2' in m)) {
         const { meta } = splitDoc(await readBlob(f.sha));
-        m = { title: meta.title || '', date: meta.date || '', draft: meta.draft === true, categories: [].concat(meta.categories || []), series: meta.series || '' };
+        m = { v2: 1, title: meta.title || '', date: meta.date || '', draft: meta.draft === true, scheduled: meta.scheduled === true,
+          categories: [].concat(meta.categories || []), series: meta.series || '', source: meta.source || '', difficulty: meta.difficulty || 0 };
       }
       fresh[f.sha] = m;
-      return { ...m, path: f.path, sha: f.sha, kind: isPost(f.path) ? 'post' : 'note' };
+      return { ...m, path: f.path, sha: f.sha, kind: kindOf(f.path) };
     }));
     local.set(KEY.cache, JSON.stringify(fresh));
     entries.sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -151,7 +156,7 @@
   }
 
   // -------------------------------------------------------------- front matter
-  const ORDER = ['title', 'subtitle', 'description', 'author', 'date', 'date-modified', 'categories', 'series', 'draft'];
+  const ORDER = ['title', 'subtitle', 'description', 'author', 'date', 'date-modified', 'categories', 'series', 'source', 'difficulty', 'draft', 'scheduled'];
   function splitDoc(text) {
     text = text.replace(/\r\n/g, '\n');
     const m = text.match(/^---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/);
@@ -201,7 +206,7 @@
   }
 
   function renderQmd(src, resolveImg) {
-    const math = [], notes = [], labels = {}, counters = {};
+    const math = [], notes = [], labels = {}, counters = {}, codes = [];
     const tok = (kind, i) => `AMQ${kind}${i}QMA`;
 
     // Number theorems and equations in order of appearance, as Quarto does.
@@ -214,6 +219,9 @@
     const parts = src.split(/(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]+`)/);
     for (let i = 0; i < parts.length; i += 2) {
       parts[i] = footnotes(parts[i]
+        .replace(/\{\{<\s*([\w-]+)\s*([\s\S]*?)>\}\}/g, (m, name, args) => tok('S', codes.push(shortcode(name, args)) - 1))
+        // [](../other-post/#thm-x): the site fills in the theorem's name; show its label here
+        .replace(/\[\]\(([^)\s]*#((?:thm|lem|cor|prp|cnj|def|exm|exr)-[\w-]+))\)/g, '[$2 ↗]($1)')
         .replace(/\$\$([\s\S]+?)\$\$([ \t]*\{#(eq-[\w-]+)\})?/g, (m, tex, _, id) => tok('M', math.push({ tex, display: true, id }) - 1))
         .replace(/(^|[^\\$])\$(?![\s$])((?:\\.|[^$\\\n]|\n(?![ \t]*\n))+?)(?<!\s)\$(?!\d)/g, (m, pre, tex) => pre + tok('M', math.push({ tex, display: false }) - 1)))
         .replace(/(^|[\s(\[;])\[?-?@((?:thm|lem|cor|prp|cnj|def|exm|exr|eq)-[\w-]+)\]?/g, (m, pre, id) => {
@@ -244,6 +252,7 @@
     function renderDiv(a, inner) {
       const type = a.id.split('-')[0];
       const callout = a.classes.map((c) => c.match(/^callout-(\w+)$/)?.[1]).find((c) => CALLOUT[c]);
+      if (a.classes.includes('hint')) return `<div class="hint"><p class="am-hint-label">Hint</p>${renderBlocks(inner)}</div>`;
       const proofish = ['proof', 'remark', 'solution'].find((c) => a.classes.includes(c));
       let name = a.kv.name || a.kv.title || '';
       if (THM[type] || proofish || callout) {
@@ -295,8 +304,27 @@
       html += `<section class="footnotes footnotes-end-of-document"><hr><ol>${notes.map((n, i) => `<li id="am-w-fn${i + 1}">${inline(n)}</li>`).join('')}</ol></section>`;
     }
     return html
+      .replace(/<p>\s*AMQS(\d+)QMA\s*<\/p>/g, (m, i) => codes[i])
+      .replace(/AMQS(\d+)QMA/g, (m, i) => codes[i])
       .replace(/AMQF(\d+)QMA/g, (m, n) => `<sup><a href="#am-w-fn${n}" class="footnote-ref">${n}</a></sup>`)
       .replace(/AMQM(\d+)QMA/g, (m, i) => renderMath(math[i], labels));
+  }
+
+  // Shortcodes: the same HTML theme/shortcodes.lua writes, so the site's script can draw them.
+  function shortcode(name, args) {
+    const pos = [], kv = {};
+    args.replace(/([\w-]+)=(?:"([^"]*)"|(\S+))|"([^"]*)"|(\S+)/g, (m, k, vq, v, q, bare) => {
+      if (k) kv[k] = vq ?? v; else pos.push(q ?? bare);
+    });
+    const cap = kv.caption ? `<figcaption>${esc(kv.caption)}</figcaption>` : '';
+    const id = String(pos[0] || '').replace(/[^\w]/g, '');
+    if (name === 'plot') {
+      const params = Object.keys(kv).filter((k) => !['x', 'y', 'caption'].includes(k)).sort().map((k) => `${k}=${kv[k]}`).join(' ');
+      return `<figure class="am-plot" data-fn="${esc(pos[0] || '')}" data-x="${esc(kv.x || '')}" data-y="${esc(kv.y || '')}" data-params="${esc(params)}">${cap}</figure>`;
+    }
+    if (name === 'desmos') return `<figure class="am-embed"><iframe src="https://www.desmos.com/calculator/${id}?embed" title="Desmos graph" loading="lazy"></iframe>${cap}</figure>`;
+    if (name === 'geogebra') return `<figure class="am-embed"><iframe src="https://www.geogebra.org/material/iframe/id/${id}" title="GeoGebra applet" loading="lazy"></iframe>${cap}</figure>`;
+    return `<p class="am-w-badref">Unknown shortcode “${esc(name)}”</p>`;
   }
 
   function renderMath(m, labels) {
@@ -429,10 +457,11 @@
     const pending = new Set(drafts.map((d) => d.path).filter(Boolean));
     const item = (e) => `<li><a href="#edit=${encodeURIComponent(e.path)}">
         <span class="am-w-item-title">${e.title ? esc(e.title) : `<i>Note, ${esc(fmtDate(e.date))}</i>`}</span>
-        <span class="am-w-item-meta">${esc(fmtDate(e.date))}${e.categories.length ? ' · ' + e.categories.map(esc).join(', ') : ''}
-          ${e.draft ? '<span class="am-w-badge">Draft</span>' : ''}${pending.has(e.path) ? '<span class="am-w-badge am-w-badge-warn">Unsent changes</span>' : ''}</span>
+        <span class="am-w-item-meta">${e.source ? esc(e.source) + ' · ' : ''}${esc(fmtDate(e.date))}${e.categories.length ? ' · ' + e.categories.map(esc).join(', ') : ''}
+          ${e.draft && e.scheduled ? `<span class="am-w-badge am-w-badge-warn">Goes live ${esc(fmtDate(e.date))}</span>` : e.draft ? '<span class="am-w-badge">Draft</span>' : ''}${pending.has(e.path) ? '<span class="am-w-badge am-w-badge-warn">Unsent changes</span>' : ''}</span>
       </a></li>`;
-    const posts = list.filter((e) => e.kind === 'post'), notes = list.filter((e) => e.kind === 'note');
+    const of = (k) => list.filter((e) => e.kind === k);
+    const NAMES = { post: 'post', note: 'note', problem: 'problem' };
     const fresh = drafts.filter((d) => !d.path);
     show(`<div class="am-w-home">
       <header class="am-w-head">
@@ -441,14 +470,16 @@
         <div class="am-w-head-actions">
           <a class="am-button" href="#new=post">New post</a>
           <a class="am-button am-button-ghost" href="#new=note">New note</a>
+          <a class="am-button am-button-ghost" href="#new=problem">New problem</a>
           <button type="button" class="am-w-link" data-act="logout">Log out</button>
         </div>
       </header>
       ${fresh.length ? `<section><h2>Not sent yet</h2><ul class="am-w-list">${fresh.map((d) => `<li><a href="#draft=${encodeURIComponent(d.key.slice(KEY.draft.length))}">
-        <span class="am-w-item-title">${esc(d.meta?.title || (d.kind === 'note' ? 'Untitled note' : 'Untitled post'))}</span>
-        <span class="am-w-item-meta">${d.kind === 'note' ? 'Note' : 'Post'} · saved on this device ${esc(ago(d.savedAt))}</span></a></li>`).join('')}</ul></section>` : ''}
-      <section><h2>Posts</h2><ul class="am-w-list">${posts.map(item).join('') || '<li class="am-w-empty">No posts yet.</li>'}</ul></section>
-      <section><h2>Notebook</h2><ul class="am-w-list">${notes.map(item).join('') || '<li class="am-w-empty">No notes yet.</li>'}</ul></section>
+        <span class="am-w-item-title">${esc(d.meta?.title || 'Untitled ' + NAMES[d.kind])}</span>
+        <span class="am-w-item-meta">${NAMES[d.kind][0].toUpperCase() + NAMES[d.kind].slice(1)} · saved on this device ${esc(ago(d.savedAt))}</span></a></li>`).join('')}</ul></section>` : ''}
+      <section><h2>Posts</h2><ul class="am-w-list">${of('post').map(item).join('') || '<li class="am-w-empty">No posts yet.</li>'}</ul></section>
+      <section><h2>Notebook</h2><ul class="am-w-list">${of('note').map(item).join('') || '<li class="am-w-empty">No notes yet.</li>'}</ul></section>
+      <section><h2>Problems</h2><ul class="am-w-list">${of('problem').map(item).join('') || '<li class="am-w-empty">No problems yet.</li>'}</ul></section>
     </div>`);
     lastBuild();
   }
@@ -486,14 +517,17 @@
       if (text == null) return;
       const parsed = splitDoc(text);
       if (parsed.error) return showError(new Error(`Couldn’t read the front matter of ${spec.path}: ${parsed.error}`));
-      d = { id: spec.path, kind: isPost(spec.path) ? 'post' : 'note', path: spec.path, sha: f.sha, isNew: false, meta: parsed.meta, body: parsed.body };
+      d = { id: spec.path, kind: kindOf(spec.path), path: spec.path, sha: f.sha, isNew: false, meta: parsed.meta, body: parsed.body };
     } else if (spec.draft) {
       const saved = JSON.parse(local.get(KEY.draft + spec.draft) || 'null');
       if (!saved) { location.hash = ''; return; }
       d = { ...saved, id: spec.draft, isNew: true };
     } else {
-      const kind = spec.kind === 'note' ? 'note' : 'post';
-      d = { id: 'new-' + Date.now().toString(36), kind, path: '', isNew: true, meta: kind === 'post' ? { title: '', date: today(), categories: [], draft: true } : { date: today(), categories: [] }, body: '' };
+      const kind = ['note', 'problem'].includes(spec.kind) ? spec.kind : 'post';
+      const meta = { post: { title: '', date: today(), categories: [], draft: true }, note: { date: today(), categories: [] },
+        problem: { title: '', date: today(), categories: [], source: '', difficulty: 2 } }[kind];
+      const body = kind === 'problem' ? 'State the problem here.\n\n::: {.hint}\nA first nudge.\n:::\n\n::: {.solution}\nThe full solution.\n:::\n' : '';
+      d = { id: 'new-' + Date.now().toString(36), kind, path: '', isNew: true, meta, body };
     }
     d.images = new Map();
     d.original = d.isNew ? null : joinDoc(d.meta, d.body);
@@ -518,8 +552,9 @@
   const allSeries = () => [...new Set((entries || []).map((e) => e.series).filter(Boolean))].sort();
 
   function renderEditor() {
-    const d = doc, m = d.meta, post = d.kind === 'post';
-    const visible = m.draft !== true;
+    const d = doc, m = d.meta, post = d.kind === 'post', problem = d.kind === 'problem';
+    const visible = m.draft !== true || m.scheduled === true;     // scheduled = visible from its date on
+    const slugged = d.isNew && (post || problem);
     const cats = new Set([].concat(m.categories || []));
     const chips = [...new Set([...allCategories(), ...cats])];
     show(`<div class="am-w-editor${post ? '' : ' am-w-is-note'}">
@@ -532,21 +567,25 @@
           <details class="am-w-more"><summary aria-label="More actions">⋯</summary><div>
             ${d.isNew ? '' : `<a href="https://github.com/${owner}/${repo}/blob/${branch}/${esc(d.path)}" target="_blank" rel="noopener">Open on GitHub ↗</a>`}
             ${d.isNew || !visible || !LIVE ? '' : `<a href="${esc(liveUrl(d.path))}" target="_blank" rel="noopener">View on the site ↗</a>`}
+            ${d.isNew ? '' : '<button type="button" data-act="history">Earlier versions…</button>'}
             <button type="button" data-act="delete">${d.isNew ? 'Discard' : 'Delete…'}</button>
           </div></details>
         </span>
       </div>
       <p class="am-w-restore" data-restore hidden>You have changes from <span data-restore-when></span> that weren’t sent.
         <button type="button" class="am-w-link" data-restore="yes">Bring them back</button> · <button type="button" class="am-w-link" data-restore="no">Throw them away</button></p>
+      <div class="am-w-history" data-history hidden></div>
 
       <div class="am-w-fields">
-        <input class="am-w-title" data-field="title" placeholder="${post ? 'Title' : 'Title (optional for notes)'}" value="${esc(m.title || '')}" aria-label="Title">
+        <input class="am-w-title" data-field="title" placeholder="${d.kind === 'note' ? 'Title (optional for notes)' : problem ? 'Problem name' : 'Title'}" value="${esc(m.title || '')}" aria-label="Title">
         ${post ? `<input class="am-w-subtitle" data-field="subtitle" placeholder="Subtitle (optional)" value="${esc(m.subtitle || '')}" aria-label="Subtitle">
         <textarea class="am-w-desc" data-field="description" rows="2" placeholder="One or two sentences for the home page and the archive" aria-label="Description">${esc(m.description || '')}</textarea>` : ''}
         <div class="am-w-row">
-          <label>Date<input type="date" data-field="date" value="${esc(m.date || today())}"></label>
+          <label title="Pick a future date to have it go live by itself that morning">Date<input type="date" data-field="date" value="${esc(m.date || today())}"></label>
           ${post ? `<label>Series<input data-field="series" list="am-w-series" value="${esc(m.series || '')}" placeholder="none"><datalist id="am-w-series">${allSeries().map((s) => `<option value="${esc(s)}">`).join('')}</datalist></label>` : ''}
-          ${post && d.isNew ? `<label class="am-w-grow">Address<span class="am-w-addr">/posts/<input data-field="slug" value="${esc(d.slug || slugify(m.title || ''))}" spellcheck="false" placeholder="from-the-title">/</span></label>` : ''}
+          ${problem ? `<label>Source<input data-field="source" value="${esc(m.source || '')}" placeholder="IMO 2019 P1, Putnam 2003 A2…"></label>
+          <label>Difficulty<select data-field="difficulty">${[1, 2, 3, 4, 5].map((n) => `<option value="${n}"${+m.difficulty === n ? ' selected' : ''}>${n} · ${['warm-up', 'easy', 'medium', 'hard', 'very hard'][n - 1]}</option>`).join('')}</select></label>` : ''}
+          ${slugged ? `<label class="am-w-grow">Address<span class="am-w-addr">/${post ? 'posts' : 'problems'}/<input data-field="slug" value="${esc(d.slug || slugify(m.title || ''))}" spellcheck="false" placeholder="from-the-title">${post ? '/' : '.html'}</span></label>` : ''}
           ${!d.isNew && visible ? `<label class="am-w-check"><input type="checkbox" data-field="revised"${m['date-modified'] === today() ? ' checked' : ''}>Mark as revised today</label>` : ''}
         </div>
         <div class="am-w-cats" role="group" aria-label="Categories">
@@ -574,11 +613,18 @@
             <button type="button" data-md="proof" title="Proof">Proof</button>
             <button type="button" data-md="callout" title="Callout box">Box</button>
             <button type="button" data-md="footnote" title="Side note">Note</button>
+            ${problem ? '<button type="button" data-md="hint" title="Another hint">Hint</button><button type="button" data-md="solution" title="Solution (starts folded)">Solution</button>' : ''}
+            <select data-md="figure" aria-label="Insert an interactive figure" title="Interactive figure">
+              <option value="">Figure…</option>
+              <option value="plot">Graph with a slider</option>
+              <option value="desmos">Desmos graph</option>
+              <option value="geogebra">GeoGebra applet</option>
+            </select>
             <span class="am-w-sep"></span>
             <button type="button" data-md="image" title="Add a picture (or drop / paste one)">Picture</button>
             <input type="file" accept="image/*" multiple hidden data-file>
           </div>
-          <textarea data-field="body" spellcheck="true" placeholder="${post ? 'Start writing. Maths goes between $ signs: $e^{i\\pi} + 1 = 0$.' : 'A quick thought, a neat proof, a problem…'}" aria-label="Text">${esc(d.body)}</textarea>
+          <textarea data-field="body" spellcheck="true" placeholder="${post ? 'Start writing. Maths goes between $ signs: $e^{i\\pi} + 1 = 0$.' : problem ? 'The statement, then hints, then the solution.' : 'A quick thought, a neat proof, a problem…'}" aria-label="Text">${esc(d.body)}</textarea>
           <div class="am-w-drop" hidden>Drop pictures to add them</div>
         </div>
         <article class="am-w-preview" aria-label="Preview">
@@ -595,11 +641,17 @@
 
   const liveUrl = (path) => LIVE + (isPost(path) ? path.replace(/index\.qmd$/, '') : path.replace(/\.qmd$/, '.html'));
   const setStatus = (text, cls = '') => { const el = $('[data-status]'); if (el) { el.textContent = text; el.className = 'am-w-status ' + cls; } };
+  const isFuture = (iso) => !!iso && iso > today();
   function syncSaveButton() {
     const visible = $('[data-field=visible]').checked;
+    const date = $('[data-field=date]').value;
     const btn = $('[data-act=save]');
-    const wasVisible = doc.isNew ? false : doc.original && !/^draft: true$/m.test(doc.original.split('\n---')[0]);
-    btn.textContent = !visible ? (wasVisible ? 'Hide from site' : 'Save draft') : doc.isNew || !wasVisible ? 'Publish' : 'Update';
+    const fm = doc.original ? doc.original.split('\n---')[0] : '';
+    const wasVisible = !doc.isNew && !/^draft: true$/m.test(fm);
+    const wasScheduled = !doc.isNew && /^scheduled: true$/m.test(fm);
+    btn.textContent = !visible ? (wasVisible ? 'Hide from site' : 'Save draft')
+      : isFuture(date) ? (wasScheduled ? 'Update' : `Schedule for ${fmtDate(date)}`)
+      : doc.isNew || !wasVisible ? 'Publish' : 'Update';
   }
 
   // Read the form back into doc.meta / doc.body.
@@ -612,14 +664,23 @@
       m.description = val('description') || undefined;
       m.series = val('series') || undefined;
     }
+    if (d.kind === 'problem') {
+      m.source = val('source') || undefined;
+      m.difficulty = +val('difficulty') || undefined;
+    }
     m.date = val('date') || today();
     m.categories = $$('.am-w-cats .am-chip.active').map((b) => b.dataset.cat);
-    if ($('[data-field=visible]').checked) delete m.draft; else m.draft = true;
+    // A future date with "visible" on is scheduled: kept as a draft until the daily
+    // rebuild (scripts/schedule.mjs) sees the date arrive and publishes it.
+    delete m.scheduled;
+    if (!$('[data-field=visible]').checked) m.draft = true;
+    else if (isFuture(m.date)) { m.draft = true; m.scheduled = true; }
+    else delete m.draft;
     const rev = $('[data-field=revised]');
     if (rev) { if (rev.checked) m['date-modified'] = today(); else if (m['date-modified'] === today()) delete m['date-modified']; }
     d.meta = m;
     d.body = $('[data-field=body]').value;
-    if (d.isNew && d.kind === 'post') d.slug = slugify(val('slug') || '') || slugify(m.title || '');
+    if (d.isNew && d.kind !== 'note') d.slug = slugify(val('slug') || '') || slugify(m.title || '');
     return d;
   }
 
@@ -636,20 +697,24 @@
   function updatePreview() {
     if (!doc) return;
     const d = collect();
-    const dir = d.kind === 'post' ? (d.isNew ? '' : d.path.replace(/index\.qmd$/, '')) : 'notes/';
+    const dir = d.kind === 'post' ? (d.isNew ? '' : d.path.replace(/index\.qmd$/, '')) : `${d.kind}s/`;
     const resolveImg = (href) => {
       if (/^([a-z]+:|\/\/|\/)/i.test(href)) return href;
-      const local = d.images.get(d.kind === 'note' ? href.replace(/^media\//, '') : href);
+      const local = d.images.get(d.kind === 'post' ? href : href.replace(/^media\//, ''));
       if (local) return local.url;
       return dir ? RAW + dir + href : href;
     };
     const head = $('.am-w-pv-head'), body = $('.am-w-pv-body');
     const title = d.meta.title || (d.kind === 'note' ? `Note, ${fmtDate(d.meta.date)}` : 'Untitled');
+    const lvl = +d.meta.difficulty;
     try {
       head.innerHTML = `<h1 class="title">${renderQmd(title, resolveImg).replace(/^<p>|<\/p>\s*$/g, '')}</h1>
         ${d.meta.subtitle ? `<p class="subtitle lead">${renderQmd(d.meta.subtitle, resolveImg).replace(/^<p>|<\/p>\s*$/g, '')}</p>` : ''}
-        <p class="am-w-pv-meta">${esc(fmtDate(d.meta.date))}${(d.meta.categories || []).map((c) => ` <span class="am-chip">${esc(c)}</span>`).join('')}</p>`;
+        <p class="am-w-pv-meta">${d.meta.source ? `<span class="am-problem-source">${esc(d.meta.source)}</span>` : ''}
+          ${lvl ? `<span class="am-level">${'<i class="on"></i>'.repeat(lvl)}${'<i></i>'.repeat(5 - lvl)}</span>` : ''}
+          ${esc(fmtDate(d.meta.date))}${(d.meta.categories || []).map((c) => ` <span class="am-chip">${esc(c)}</span>`).join('')}</p>`;
       body.innerHTML = renderQmd(d.body, resolveImg) || '<p class="am-w-empty">The preview shows up here.</p>';
+      window.AM?.renderFigures?.(body);
     } catch (e) {
       body.innerHTML = `<p class="am-w-error">Preview error: ${esc(e.message)}</p>`;
     }
@@ -695,28 +760,61 @@
     proof: () => insertBlock('::: {.proof}\nProof goes here.\n:::', 'Proof goes here.'),
     callout: () => insertBlock('::: {.callout-note}\n## Title\nText.\n:::', 'Title'),
     footnote: () => insert('^[', ']', 'side note'),
+    hint: () => insertBlock('::: {.hint}\nA nudge.\n:::', 'A nudge.'),
+    solution: () => insertBlock('::: {.solution}\nThe full solution.\n:::', 'The full solution.'),
     image: () => $('[data-file]').click(),
   };
   function env(type) {
     insertBlock(`::: {#${type}-label}\nStatement.\n:::`, 'label');
   }
+  const FIGURES = {
+    plot: ['{{< plot "sin(a*x)" a=1..4 x=-6..6 >}}', 'sin(a*x)'],
+    desmos: ['{{< desmos GRAPH-ID >}}', 'GRAPH-ID'],
+    geogebra: ['{{< geogebra APPLET-ID >}}', 'APPLET-ID'],
+  };
+
+  // Big photos are scaled to at most 1600 px wide and re-encoded; small images and SVGs are left alone.
+  async function shrink(file) {
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type) || file.size < 300e3) return file;
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, 1600 / bmp.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bmp.width * scale);
+      canvas.height = Math.round(bmp.height * scale);
+      canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+      const type = file.type === 'image/png' ? 'image/webp' : 'image/jpeg';
+      const blob = await new Promise((r) => canvas.toBlob(r, type, 0.85));
+      if (!blob || blob.size >= file.size) return file;
+      const name = file.name.replace(/\.[^.]+$/, '') + (type === 'image/webp' ? '.webp' : '.jpg');
+      return new File([blob], name, { type });
+    } catch (_) {
+      return file;
+    }
+  }
 
   // ---- pictures
   async function addImages(list) {
     const ta = $('[data-field=body]');
-    for (const f of list) {
-      if (!f.type.startsWith('image/')) continue;
+    for (const original of list) {
+      if (!original.type.startsWith('image/')) continue;
+      const f = await shrink(original);
       const ext = (f.name.match(/\.([a-z0-9]+)$/i)?.[1] || f.type.split('/')[1] || 'png').toLowerCase().replace('jpeg', 'jpg').replace('svg+xml', 'svg');
       const base = slugify(f.name.replace(/\.[^.]+$/, '')) || 'picture';
       const generic = /^(image|picture|screenshot|img)(-\d+)?$/.test(base);
       let name = `${generic ? 'picture-' + Date.now().toString(36) : base}.${ext}`;
-      const dir = doc.kind === 'post' ? (doc.isNew ? null : doc.path.replace(/index\.qmd$/, '')) : 'notes/media/';
+      const dir = mediaDir(doc);
       for (let n = 2; doc.images.has(name) || (dir && files.some((x) => x.path === dir + name)); n++) name = name.replace(/(-\d+)?\.(\w+)$/, `-${n}.$2`);
       const b64 = toB64(new Uint8Array(await f.arrayBuffer()));
       doc.images.set(name, { b64, url: URL.createObjectURL(f) });
-      if (f.size > 3e6) setStatus(`That picture is ${(f.size / 1e6).toFixed(1)} MB. Smaller files load faster.`, 'am-w-status-warn');
+      const mb = (n) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`);
       ta.focus();
-      insert('![', `](${doc.kind === 'note' ? 'media/' : ''}${name})`, 'Describe the picture');
+      ta.setSelectionRange(ta.selectionEnd, ta.selectionEnd);     // don't turn selected text into the caption
+      insert('![', `](${doc.kind === 'post' ? '' : 'media/'}${name})`, 'Describe the picture');
+      // Say so after the autosave note has had its turn.
+      const note = f !== original ? [`Picture shrunk from ${mb(original.size)} to ${mb(f.size)}`, 'am-w-status-ok']
+        : f.size > 3e6 ? [`That picture is ${mb(f.size)}. Smaller files load faster.`, 'am-w-status-warn'] : null;
+      if (note) setTimeout(() => setStatus(...note), 900);
     }
   }
 
@@ -726,7 +824,7 @@
     if (saving) return;
     const d = collect();
     const post = d.kind === 'post';
-    if (post && !d.meta.title) { setStatus('Give the post a title first', 'am-w-status-bad'); $('[data-field=title]').focus(); return; }
+    if (d.kind !== 'note' && !d.meta.title) { setStatus(`Give the ${d.kind} a title first`, 'am-w-status-bad'); $('[data-field=title]').focus(); return; }
     if (!d.body.trim()) { setStatus('There’s nothing to save yet', 'am-w-status-bad'); return; }
     saving = true;
     clearTimeout(saveTimer);
@@ -741,6 +839,10 @@
           if (!d.slug) throw new Error('The address can’t be empty.');
           path = `posts/${d.slug}/index.qmd`;
           if (files.some((f) => f.path.startsWith(`posts/${d.slug}/`))) throw new Error(`There’s already a post at /posts/${d.slug}/. Change the address.`);
+        } else if (d.kind === 'problem') {
+          if (!d.slug) throw new Error('The address can’t be empty.');
+          path = `problems/${d.slug}.qmd`;
+          if (files.some((f) => f.path === path)) throw new Error(`There’s already a problem at /problems/${d.slug}.html. Change the address.`);
         } else {
           const stem = `notes/${d.meta.date}-${slugify(d.meta.title || '') || new Date().toTimeString().slice(0, 5).replace(':', '')}`;
           path = `${stem}.qmd`;
@@ -753,10 +855,10 @@
         }
       }
       const text = joinDoc(d.meta, d.body);
-      const dir = post ? path.replace(/index\.qmd$/, '') : 'notes/media/';
-      const out = [{ path, text }, ...[...d.images].map(([name, img]) => ({ path: dir + name, b64: img.b64 }))];
+      const dir = mediaDir({ kind: d.kind, path });
+      const out = [{ path, text }, ...[...d.images].filter(([, img]) => img.b64).map(([name, img]) => ({ path: dir + name, b64: img.b64 }))];
       const title = d.meta.title || `note from ${d.meta.date}`;
-      const verb = d.isNew ? (d.meta.draft ? 'Draft' : 'Publish') : d.meta.draft ? 'Update draft' : 'Update';
+      const verb = d.meta.scheduled ? `Schedule for ${d.meta.date}` : d.isNew ? (d.meta.draft ? 'Draft' : 'Publish') : d.meta.draft ? 'Update draft' : 'Update';
       const { commit, shas } = await commitFiles(`${verb}: ${title}`, out);
 
       local.del(KEY.draft + d.id);
@@ -766,7 +868,7 @@
       if (wasNew) history.replaceState(null, '', '#edit=' + encodeURIComponent(path));
       renderEditor();
       setStatus('Saved to GitHub', 'am-w-status-ok');
-      track(commit, path, !d.meta.draft);
+      track(commit, path, !d.meta.draft, d.meta.scheduled && d.meta.date);
     } catch (e) {
       setStatus(explain(e), 'am-w-status-bad');
     } finally {
@@ -802,9 +904,41 @@
     }
   }
 
+  // ---- earlier versions, from the repo's history
+  async function showHistory() {
+    const box = $('[data-history]');
+    box.hidden = false;
+    box.innerHTML = '<p class="am-loading">Loading the history…</p>';
+    try {
+      const commits = await gh(`${R}/commits?path=${encodeURIComponent(doc.path)}&sha=${branch}&per_page=30`);
+      const when = (iso) => new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      box.innerHTML = `<div class="am-w-history-head"><strong>Earlier versions</strong><button type="button" class="am-w-link" data-act="close-history">Close</button></div>
+        <p class="am-w-fine">Pick one to load it into the editor. Nothing changes on the site until you save.</p>
+        <ol>${commits.map((c, i) => `<li><button type="button" data-version="${esc(c.sha)}" data-when="${esc(c.commit.author.date)}">
+          <span>${esc(c.commit.message.split('\n')[0])}</span>
+          <span class="am-w-item-meta">${esc(when(c.commit.author.date))}${i === 0 ? ' · current' : ''}</span></button></li>`).join('')}</ol>`;
+    } catch (e) {
+      box.innerHTML = `<p class="am-w-error">${esc(explain(e))}</p>`;
+    }
+  }
+  async function loadVersion(sha, when) {
+    try {
+      const f = await gh(`${R}/contents/${doc.path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(sha)}`);
+      const parsed = splitDoc(dec.decode(fromB64(f.content)));
+      if (parsed.error) throw new Error(parsed.error);
+      doc.meta = parsed.meta;
+      doc.body = parsed.body;
+      renderEditor();
+      autosave();
+      setStatus(`Showing the version from ${fmtDate(when.slice(0, 10))}. Save to bring it back.`, 'am-w-status-warn');
+    } catch (e) {
+      setStatus(explain(e), 'am-w-status-bad');
+    }
+  }
+
   // ---- follow the rebuild after a save
   let toastRun = 0;
-  async function track(sha, path, visible) {
+  async function track(sha, path, visible, scheduledFor) {
     const run = ++toastRun;
     let toast = document.querySelector('.am-w-toast');
     if (!toast) {
@@ -835,7 +969,7 @@
       }
       if (r.conclusion === 'success') {
         const link = path && visible && LIVE ? ` <a href="${esc(liveUrl(path))}" target="_blank" rel="noopener">View it ↗</a>` : '';
-        return say(`<span class="am-w-dot am-w-dot-ok"></span>${path ? (visible ? 'Live on the site.' : 'Saved as a draft. It’s hidden on the site.') : 'Deleted from the site.'}${link}`, 'am-w-toast-ok');
+        return say(`<span class="am-w-dot am-w-dot-ok"></span>${path ? (scheduledFor ? `Scheduled. It goes live on ${esc(fmtDate(scheduledFor))}.` : visible ? 'Live on the site.' : 'Saved as a draft. It’s hidden on the site.') : 'Deleted from the site.'}${link}`, 'am-w-toast-ok');
       }
       return say(`<span class="am-w-dot am-w-dot-bad"></span>The rebuild failed. <a href="${esc(r.html_url)}" target="_blank" rel="noopener">See why ↗</a>`, 'am-w-toast-bad');
     }
@@ -857,6 +991,9 @@
     if (act === 'logout') logout();
     if (act === 'save') save();
     if (act === 'delete') { t.closest('details').open = false; remove(); }
+    if (act === 'history') { t.closest('details').open = false; showHistory(); }
+    if (act === 'close-history') $('[data-history]').hidden = true;
+    if (t.dataset.version) loadVersion(t.dataset.version, t.dataset.when);
     if (t.dataset.md && ACTIONS[t.dataset.md]) ACTIONS[t.dataset.md]();
     if (t.dataset.cat) {
       const on = t.classList.toggle('active');
@@ -872,17 +1009,18 @@
   host.addEventListener('input', (e) => {
     const f = e.target.dataset.field;
     if (!f || !doc || f === 'newcat') return;
-    if (f === 'title' && doc.isNew && doc.kind === 'post' && !doc.slugTouched) {
+    if (f === 'title' && doc.isNew && doc.kind !== 'note' && !doc.slugTouched) {
       const s = $('[data-field=slug]');
       if (s) s.value = slugify(e.target.value);
     }
     if (f === 'slug') doc.slugTouched = true;
-    if (f === 'visible') syncSaveButton();
+    if (f === 'visible' || f === 'date') syncSaveButton();
     changed();
   });
   host.addEventListener('change', (e) => {
     const t = e.target;
     if (t.dataset.md === 'env' && t.value) { env(t.value); t.value = ''; }
+    if (t.dataset.md === 'figure' && t.value) { const [text, sel] = FIGURES[t.value]; insertBlock(text, sel); t.value = ''; }
     if (t.dataset.file !== undefined && t.files?.length) { addImages([...t.files]); t.value = ''; }
     if (t.dataset.field === 'visible' || t.dataset.field === 'revised') { syncSaveButton(); changed(); }
   });

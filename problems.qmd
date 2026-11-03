@@ -1,0 +1,31 @@
+---
+title: "Problems"
+subtitle: "Olympiad and puzzle problems with hints that open one at a time. Try them before you peek."
+page-layout: article
+toc: false
+listing:
+  id: problems
+  contents: problems
+  sort: "date desc"
+  template: _templates/problems.ejs
+  template-params:
+    id: am-problems-index
+    fallback: true
+  date-format: iso
+  max-description-length: 600
+  fields: [title, date, categories, description, path]
+  feed:
+    title: "antony-mathematics: problems"
+    description: "Olympiad and puzzle problems"
+---
+
+```{=html}
+<div id="am-problems" class="am-problems">
+```
+
+::: {#problems}
+:::
+
+```{=html}
+</div>
+```
