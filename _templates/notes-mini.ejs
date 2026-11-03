@@ -1,0 +1,12 @@
+```{=html}
+<ol class="list am-notes-mini">
+<% for (const item of items) { %>
+<li <%= metadataAttrs(item) %>>
+  <a href="<%- item.path %>">
+    <span class="am-notes-mini-date listing-date"><%= item.date %></span>
+    <span class="am-notes-mini-text"><%= item.title || item.description || 'A note' %></span>
+  </a>
+</li>
+<% } %>
+</ol>
+```

@@ -1,13 +1,19 @@
 <%
-// Emits every post as base64 JSON so site.js can build "previous / next" and
-// "more on this topic" links at the bottom of each post. Nothing visible here.
+// Page index as base64 JSON for theme/site.html (prev/next, series, Notebook, Theorems).
+const id = (templateParams && templateParams.id) || 'am-post-index';
 const data = items.map((i) => ({
-  title: i.title,
+  title: i.title || null,
   path: String(i.path).replace(/\\/g, '/').replace(/^\//, '').replace(/\.(qmd|md|ipynb)$/, '.html'),
   date: i.date,
   categories: i.categories || [],
+  series: i.series || null,
 }));
 %>
 ```{=html}
-<div id="am-post-index" hidden data-posts="<%- utils.b64encode(JSON.stringify(data)) %>"></div>
+<div id="<%- id %>" hidden data-posts="<%- utils.b64encode(JSON.stringify(data)) %>"></div>
+<% if (templateParams && templateParams.fallback) { %>
+<ol class="am-fallback-list">
+<% for (const i of items) { %>  <li><a href="<%- i.path %>"><%= i.title || 'Note' %></a> <span><%= i.date %></span></li>
+<% } %></ol>
+<% } %>
 ```

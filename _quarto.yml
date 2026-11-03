@@ -11,7 +11,9 @@ website:
   site-url: https://antonyp-wustl.github.io
   favicon: assets/logo.svg
   open-graph: true
-  twitter-card: true
+  twitter-card:
+    card-style: summary_large_image
+  image: assets/card.png
   back-to-top-navigation: true
   bread-crumbs: false
   page-navigation: false
@@ -29,8 +31,12 @@ website:
     left:
       - text: Writing
         href: archive.qmd
+      - text: Notebook
+        href: notebook.qmd
       - text: Topics
         href: topics.qmd
+      - text: Theorems
+        href: theorems.qmd
       - text: About
         href: about.qmd
     right:
@@ -42,12 +48,18 @@ website:
         aria-label: RSS feed
   page-footer:
     left: "© 2026 Antony"
-    center: "Press <kbd>/</kbd> to search · <kbd>t</kbd> to switch theme"
+    center: "Press <kbd>/</kbd> to search · <kbd>t</kbd> to switch theme · <kbd>p</kbd> to fold proofs"
     right:
       - text: RSS
         href: archive.xml
       - text: Built with Quarto
         href: https://quarto.org
+
+filters:
+  - theme/am.lua
+
+language:
+  title-block-modified: "Revised"
 
 format:
   html:
@@ -75,3 +87,4 @@ format:
       - file: theme/katex-macros.html
     include-after-body:
       - file: theme/site.html
+      - file: theme/analytics.html

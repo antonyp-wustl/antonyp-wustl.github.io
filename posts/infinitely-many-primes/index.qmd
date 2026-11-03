@@ -4,6 +4,7 @@ subtitle: "Euclid's, Euler's, and one that uses topology"
 description: "The same theorem proved three ways: by multiplication, by divergence of the harmonic series, and by a topology on the integers."
 date: 2026-10-12
 categories: [Number Theory, Proofs]
+series: "Looking at primes"
 ---
 
 Few theorems have been proved as many ways as this one. Each proof below is short, but they come from very different parts of mathematics, and each one shows something new about why primes cannot run out.
@@ -36,7 +37,7 @@ $$
 $$
 :::
 
-::: {.proof}
+::: {.proof collapse="true"}
 Expand each factor as a geometric series, $\frac{1}{1-1/p} = 1 + \frac1p + \frac1{p^2} + \cdots$, and multiply out. Every term of the product is $1/n$ for some integer $n$ built from primes in $S$, and by unique factorisation each such $n$ appears exactly once. Every $n \le N$ is one of them, and all terms are positive.
 :::
 

@@ -12,6 +12,12 @@ listing:
     max-items: 6
     template: _templates/latest.ejs
     fields: [title, subtitle, date, description, categories, reading-time, path]
+  - id: notebook-latest
+    contents: notes
+    sort: "date desc"
+    max-items: 4
+    template: _templates/notes-mini.ejs
+    fields: [title, date, description, path]
   - id: topic-grid
     contents: posts
     sort: "date desc"
@@ -50,6 +56,16 @@ listing:
 ```
 
 ::: {#latest}
+:::
+
+```{=html}
+<div class="am-section-head">
+  <h2>From the notebook</h2>
+  <a href="notebook.html">All notes →</a>
+</div>
+```
+
+::: {#notebook-latest}
 :::
 
 ```{=html}

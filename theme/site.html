@@ -2,40 +2,211 @@
 // Quality-of-life features shared by every page.
 (() => {
   const main = document.querySelector('main#quarto-document-content') || document.querySelector('main');
-  const indexEl = document.getElementById('am-post-index');
-  const isPost = !!indexEl;
+  const root = document.querySelector('meta[name="quarto:offset"]')?.content || './';
+  const page = document.getElementById('am-page');          // posts and notes (added by theme/am.lua)
+  const kind = page?.dataset.kind;
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const fmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const onLoad = (fn) => (document.readyState === 'complete' ? fn() : addEventListener('load', fn));
+  const typeset = (el) => window.Quarto?.typesetMath?.(el);
+  const noteTitle = (p) => p.title || 'Note, ' + fmt(p.date);
 
-  // -------------------------------------------------- keyboard: "t" flips the theme
+  // Auto-generated excerpts (home page notebook strip) can end in empty maths spans,
+  // which stop Quarto's KaTeX pass. This runs first, before DOMContentLoaded.
+  document.querySelectorAll('span.math:empty').forEach((n) => n.remove());
+
+  // Index data written by _templates/post-index.ejs. Paths are relative to the site root.
+  const readIndex = (el) => {
+    try {
+      return JSON.parse(decodeURIComponent(atob(el.dataset.posts)))
+        .filter((p) => p.path)
+        .map((p) => ({ ...p, path: root + p.path }));
+    } catch (_) { return []; }
+  };
+
+  // Fetch another page of the site and make its relative links work from here.
+  const fetchPage = async (path) => {
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(res.status);
+    const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+    const base = new URL(path, location.href);
+    doc.querySelectorAll('[href], [src]').forEach((n) => {
+      for (const a of ['href', 'src']) {
+        const v = n.getAttribute(a);
+        if (v && !/^([a-z]+:|\/\/)/i.test(v)) n.setAttribute(a, new URL(v, base).href);
+      }
+    });
+    return doc;
+  };
+
+  // -------------------------------------------------- keyboard: "t" flips the theme, "p" folds proofs
+  const keyActions = {
+    t: () => window.quartoToggleColorScheme?.(),
+  };
   document.addEventListener('keydown', (e) => {
-    if (e.key !== 't' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
     const t = e.target;
     if (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-    if (window.quartoToggleColorScheme) {
-      e.preventDefault();
-      window.quartoToggleColorScheme();
-    }
+    const action = keyActions[e.key];
+    if (action) { e.preventDefault(); action(); }
   });
 
-  if (!isPost || !main) return;
+  // -------------------------------------------------- Theorems page
+  const resultsIndex = document.getElementById('am-results-index');
+  if (resultsIndex) buildResults(readIndex(resultsIndex), document.getElementById('am-results'));
 
-  // Category chips in the post header open that topic on the Topics page.
-  const root = document.querySelector('meta[name="quarto:offset"]')?.content || './';
-  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  async function buildResults(posts, host) {
+    if (!host) return;
+    const TYPES = { def: 'Definitions', thm: 'Theorems', prp: 'Propositions', lem: 'Lemmas', cor: 'Corollaries', cnj: 'Conjectures' };
+    host.innerHTML = `<p class="am-loading">Collecting results from ${posts.length} ${posts.length === 1 ? 'post' : 'posts'}…</p>`;
+    const found = await Promise.all(posts.map(async (p) => {
+      try {
+        const doc = await fetchPage(p.path);
+        const items = [...doc.querySelectorAll('main div.theorem[id]')]
+          .map((d) => ({ type: d.id.split('-')[0], node: d }))
+          .filter((r) => TYPES[r.type]);
+        return { p, items };
+      } catch (_) { return { p, items: [] }; }
+    }));
+    const groups = found.filter((g) => g.items.length);
+    const all = groups.flatMap((g) => g.items);
+    if (!all.length) {
+      host.innerHTML = `<p class="am-empty">Nothing here yet. Any <code>::: {#thm-…}</code> or <code>::: {#def-…}</code> block in a post shows up on this page automatically.</p>`;
+      return;
+    }
+    const counts = {};
+    all.forEach((r) => { counts[r.type] = (counts[r.type] || 0) + 1; });
+    const types = Object.keys(TYPES).filter((t) => counts[t]);
+
+    host.innerHTML = `
+      <div class="am-results-controls">
+        <input type="search" class="am-results-search" placeholder="Search statements, names or TeX…" aria-label="Search results">
+        <div class="am-results-types" role="group" aria-label="Filter by type">
+          <button type="button" class="am-chip active" data-type="">All <span>${all.length}</span></button>
+          ${types.map((t) => `<button type="button" class="am-chip" data-type="${t}">${TYPES[t]} <span>${counts[t]}</span></button>`).join('')}
+        </div>
+      </div>
+      <div class="am-results-list"></div>
+      <p class="am-empty" hidden>No results match.</p>`;
+    const list = host.querySelector('.am-results-list');
+    for (const { p, items } of groups) {
+      const section = document.createElement('section');
+      section.className = 'am-results-post';
+      section.innerHTML = `<header><a href="${p.path}">${esc(p.title)}</a><span>${fmt(p.date)}</span></header>`;
+      for (const { type, node } of items) {
+        const entry = document.createElement('div');
+        entry.className = 'am-result';
+        entry.dataset.type = type;
+        entry.dataset.text = node.textContent.toLowerCase();
+        entry.append(node);
+        entry.insertAdjacentHTML('beforeend', `<a class="am-result-link" href="${p.path}#${node.id}">In context →</a>`);
+        section.append(entry);
+      }
+      list.append(section);
+    }
+    typeset(list);
+
+    const search = host.querySelector('.am-results-search');
+    let type = '';
+    const apply = () => {
+      const q = search.value.trim().toLowerCase();
+      let shown = 0;
+      list.querySelectorAll('.am-results-post').forEach((s) => {
+        let any = false;
+        s.querySelectorAll('.am-result').forEach((r) => {
+          const ok = (!type || r.dataset.type === type) && (!q || r.dataset.text.includes(q));
+          r.hidden = !ok;
+          any ||= ok;
+          shown += ok;
+        });
+        s.hidden = !any;
+      });
+      host.querySelector('.am-empty').hidden = shown > 0;
+    };
+    search.addEventListener('input', apply);
+    host.querySelectorAll('.am-results-types .am-chip').forEach((b) => b.addEventListener('click', () => {
+      host.querySelectorAll('.am-results-types .am-chip').forEach((x) => x.classList.toggle('active', x === b));
+      type = b.dataset.type;
+      apply();
+    }));
+  }
+
+  // -------------------------------------------------- Notebook page: every note in full, newest first
+  const notesIndex = document.getElementById('am-notes-index');
+  if (notesIndex) buildNotebook(readIndex(notesIndex), document.getElementById('am-notebook'));
+
+  async function buildNotebook(notes, host) {
+    if (!host || !notes.length) return;
+    const BATCH = 10;
+    const stream = document.createElement('div');
+    stream.className = 'am-note-stream';
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'am-button am-button-ghost am-note-more';
+    more.textContent = 'Older notes';
+    let shown = 0;
+
+    const card = (n, doc) => {
+      const art = document.createElement('article');
+      art.className = 'am-note';
+      const chips = n.categories.map((c) => `<span class="am-chip">${esc(c)}</span>`).join('');
+      art.innerHTML = `<header><a class="am-note-date" href="${n.path}">${fmt(n.date)}</a>${chips}</header>
+        ${n.title ? `<h2 class="am-note-title"><a href="${n.path}">${esc(n.title)}</a></h2>` : ''}
+        <div class="am-note-body"></div>`;
+      const body = art.querySelector('.am-note-body');
+      const content = doc?.querySelector('main#quarto-document-content');
+      if (!content) {
+        body.innerHTML = `<p><a href="${n.path}">Read this note →</a></p>`;
+      } else if (content.querySelector('.cell, [id^="ojs-cell"]')) {
+        body.innerHTML = `<p class="am-muted">This note has interactive parts. <a href="${n.path}">Open it →</a></p>`;
+      } else {
+        content.querySelectorAll('#title-block-header, #quarto-appendix, #am-page, [id^="listing-"], script').forEach((x) => x.remove());
+        body.append(...content.childNodes);
+      }
+      return art;
+    };
+
+    const loadMore = async () => {
+      more.disabled = true;
+      const batch = notes.slice(shown, shown + BATCH);
+      shown += batch.length;
+      const docs = await Promise.all(batch.map((n) => fetchPage(n.path).catch(() => null)));
+      const frag = document.createElement('div');
+      batch.forEach((n, i) => frag.append(card(n, docs[i])));
+      typeset(frag);
+      stream.append(...frag.childNodes);
+      more.disabled = false;
+      more.hidden = shown >= notes.length;
+    };
+    more.addEventListener('click', loadMore);
+    await loadMore();
+    host.querySelector('.am-fallback-list')?.remove();
+    host.append(stream, more);
+  }
+
+  if (!page || !main) return;
+
+  // ================================================== posts and notes only from here
+
+  // Category chips in the header open that topic on the Topics page.
   // (Quarto rewrites these links after load, so set them late and catch clicks too.)
   const topicHref = (chip) => root + 'topics.html#' + slug(chip.textContent.trim());
   const fixChips = () => document.querySelectorAll('.quarto-title .quarto-category').forEach((chip) => {
     const a = chip.querySelector('a');
     if (a) a.href = topicHref(chip);
   });
-  fixChips();
-  addEventListener('load', fixChips);
-  document.addEventListener('click', (e) => {
-    const chip = e.target.closest('.quarto-title .quarto-category');
-    if (!chip) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    location.href = topicHref(chip);
-  }, true);
+  if (kind === 'post') {
+    fixChips();
+    addEventListener('load', fixChips);
+    document.addEventListener('click', (e) => {
+      const chip = e.target.closest('.quarto-title .quarto-category');
+      if (!chip) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      location.href = topicHref(chip);
+    }, true);
+  }
 
   // -------------------------------------------------- reading progress bar
   const bar = document.createElement('div');
@@ -54,7 +225,7 @@
 
   // -------------------------------------------------- reading time in the header
   const meta = document.querySelector('.quarto-title-meta');
-  if (meta) {
+  if (meta && kind === 'post') {
     const body = main.cloneNode(true);
     body.querySelectorAll('#title-block-header, #quarto-appendix, .katex-mathml, script, style, .listing-no-matching').forEach((n) => n.remove());
     const words = (body.textContent.match(/\S+/g) || []).length;
@@ -65,32 +236,49 @@
     meta.appendChild(block);
   }
 
-  // -------------------------------------------------- previous / next and related posts
-  // Paths in the index are relative to the site root; quarto:offset points there.
-  const offset = root;
-  const fmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-  let posts = [];
-  try {
-    posts = JSON.parse(decodeURIComponent(atob(indexEl.dataset.posts)))
-      .filter((p) => p.title)
-      .map((p) => ({ ...p, path: offset + p.path }));
-  } catch (_) {}
+  // -------------------------------------------------- where this page sits among the others
+  const indexEl = document.getElementById('am-post-index');
+  const posts = indexEl ? readIndex(indexEl) : [];
   // Quarto leaves the current page out of its own listing, so slot it back in by date.
   const me = {
     me: true,
+    title: document.querySelector('h1.title')?.textContent.trim() || document.title,
     date: document.querySelector('meta[name="dcterms.date"]')?.content || '',
     categories: [...document.querySelectorAll('.quarto-title .quarto-category')].map((c) => c.textContent.trim()),
+    series: page.dataset.series || null,
   };
   posts.push(me);
   posts.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (a.me ? -1 : b.me ? 1 : 0));
   const i = posts.indexOf(me);
+
+  // Series: a box under the title listing every part, oldest first.
+  const parts = me.series ? posts.filter((p) => p.series === me.series).reverse() : [];
+  const part = parts.indexOf(me);
+  if (parts.length) {
+    const box = document.createElement('nav');
+    box.className = 'am-series';
+    box.setAttribute('aria-label', 'Series');
+    box.innerHTML = `
+      <div class="am-series-head">
+        <span class="am-series-kicker">Series</span>
+        <a class="am-series-name" href="${root}topics.html#series-${slug(me.series)}">${esc(me.series)}</a>
+        <span class="am-series-count">Part ${part + 1} of ${parts.length}</span>
+      </div>
+      <ol>${parts.map((p) => p.me
+        ? `<li class="current" aria-current="page">${esc(p.title)}</li>`
+        : `<li><a href="${p.path}">${esc(p.title)}</a></li>`).join('')}</ol>`;
+    const header = main.querySelector('#title-block-header');
+    if (header) header.after(box); else main.prepend(box);
+  }
+
   if (posts.length > 1) {
     const newer = posts[i - 1], older = posts[i + 1];
+    const nextPart = parts[part + 1];
     const link = (p, cls, label) => p
-      ? `<a class="${cls}" href="${p.path}"><small>${label}</small><strong>${p.title}</strong></a>` : '';
-    const related = posts
+      ? `<a class="${cls}" href="${p.path}"><small>${label}</small><strong>${esc(noteTitle(p))}</strong></a>` : '';
+    const related = kind !== 'post' ? [] : posts
       .map((p, j) => ({ p, j, shared: p.categories.filter((c) => me.categories.includes(c)).length }))
-      .filter(({ j, shared }) => j !== i && shared > 0 && j !== i - 1 && j !== i + 1)
+      .filter(({ p, j, shared }) => j !== i && shared > 0 && j !== i - 1 && j !== i + 1 && p !== nextPart)
       .sort((a, b) => b.shared - a.shared || a.j - b.j)
       .slice(0, 4);
 
@@ -98,13 +286,101 @@
     end.className = 'am-post-end';
     end.setAttribute('aria-label', 'More posts');
     end.innerHTML =
+      (nextPart ? `<a class="am-series-next" href="${nextPart.path}"><small>Next in ${esc(me.series)} · part ${part + 2} of ${parts.length}</small><strong>${esc(nextPart.title)}</strong></a>` : '') +
       ((newer || older) ? `<div class="am-prevnext">${link(older, 'am-prev', '← Older')}${link(newer, 'am-next', 'Newer →')}</div>` : '') +
-      (related.length ? `<div class="am-related"><h2>More on ${me.categories.filter((c) => related.some(({ p }) => p.categories.includes(c)))[0] || 'this topic'}</h2><ul>${
-        related.map(({ p }) => `<li><a href="${p.path}">${p.title}</a><span>${fmt(p.date)}</span></li>`).join('')
+      (related.length ? `<div class="am-related"><h2>More on ${esc(me.categories.filter((c) => related.some(({ p }) => p.categories.includes(c)))[0] || 'this topic')}</h2><ul>${
+        related.map(({ p }) => `<li><a href="${p.path}">${esc(p.title)}</a><span>${fmt(p.date)}</span></li>`).join('')
       }</ul></div>` : '');
     const appendix = main.querySelector('#quarto-appendix');
     if (end.innerHTML) main.insertBefore(end, appendix || null);
   }
+
+  // -------------------------------------------------- foldable proofs and solutions
+  // Every proof gets a toggle. ::: {.proof collapse="true"} starts folded, solutions start
+  // folded unless collapse="false", and `fold-proofs: true` in the front matter folds them all.
+  const foldAll = page.dataset.foldProofs === 'true';
+  const folds = [];
+  const setFold = (f, closed) => {
+    f.el.classList.toggle('am-closed', closed);
+    f.btn.setAttribute('aria-expanded', String(!closed));
+    f.state.textContent = closed ? 'Show' : 'Hide';
+  };
+  main.querySelectorAll('div.proof:not(.remark)').forEach((el, n) => {
+    const title = el.querySelector('.proof-title');
+    // "## Proof of @thm-x" renders as "Proof (Proof of Theorem 1)"; keep the inner part.
+    const label = (title?.textContent || 'Proof').trim().replace(/\.$/, '').replace(/^\w+ \(((Proof|Solution)\b.*)\)$/, '$1');
+    const firstP = title?.parentElement;
+    title?.remove();
+    if (firstP && !firstP.textContent.trim() && !firstP.children.length) firstP.remove();
+
+    const body = document.createElement('div');
+    body.className = 'am-fold-body';
+    body.id = 'am-fold-' + n;
+    body.append(...el.childNodes);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'am-fold-toggle';
+    btn.setAttribute('aria-controls', body.id);
+    btn.innerHTML = `<span class="am-fold-label">${esc(label)}</span><span class="am-fold-state"></span>`;
+    el.classList.add('am-fold');
+    el.append(btn, body);
+
+    const isSolution = el.classList.contains('solution');
+    const c = el.dataset.collapse;
+    const f = { el, btn, state: btn.querySelector('.am-fold-state'), isSolution };
+    setFold(f, c === 'true' || (c !== 'false' && (isSolution || foldAll)));
+    btn.addEventListener('click', () => setFold(f, !el.classList.contains('am-closed')));
+    folds.push(f);
+  });
+  // Following a link into a folded proof opens it.
+  const openTarget = () => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    const target = id && document.getElementById(id);
+    folds.forEach((f) => { if (target && f.el.contains(target)) setFold(f, false); });
+  };
+  addEventListener('hashchange', openTarget);
+  openTarget();
+
+  // -------------------------------------------------- page tools: under the contents list, or under the title on phones
+  const proofFolds = folds.filter((f) => !f.isSolution);
+  if (kind === 'post') {
+    const toggles = [];
+    const anyOpen = () => proofFolds.some((f) => !f.el.classList.contains('am-closed'));
+    const sync = () => toggles.forEach((t) => { t.innerHTML = `${anyOpen() ? 'Hide' : 'Show'} all proofs <kbd>p</kbd>`; });
+    const flip = () => { const open = anyOpen(); proofFolds.forEach((f) => setFold(f, open)); sync(); };
+    if (proofFolds.length) {
+      proofFolds.forEach((f) => f.btn.addEventListener('click', sync));
+      keyActions.p = flip;
+    }
+    const makeTools = (where) => {
+      const tools = document.createElement('div');
+      tools.className = 'am-page-tools ' + where;
+      if (proofFolds.length) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.addEventListener('click', flip);
+        toggles.push(toggle);
+        tools.append(toggle);
+      }
+      const print = document.createElement('button');
+      print.type = 'button';
+      print.textContent = 'Print or save as PDF';
+      print.addEventListener('click', () => window.print());
+      tools.append(print);
+      return tools;
+    };
+    const toc = document.querySelector('nav#TOC');
+    if (toc) toc.append(makeTools('am-in-toc'));
+    document.querySelector('#title-block-header')?.append(makeTools(toc ? 'am-in-header am-narrow-only' : 'am-in-header'));
+    sync();
+  }
+  // Printing always shows every proof; put them back as they were afterwards.
+  let beforePrint = [];
+  addEventListener('beforeprint', () => {
+    beforePrint = folds.filter((f) => f.el.classList.contains('am-closed'));
+    beforePrint.forEach((f) => setFold(f, false));
+  });
+  addEventListener('afterprint', () => beforePrint.forEach((f) => setFold(f, true)));
 
   // -------------------------------------------------- copy any display equation as TeX
   const addCopyButtons = () => {
@@ -130,7 +406,6 @@
       el.appendChild(btn);
     });
   };
-  if (document.readyState === 'complete') addCopyButtons();
-  else addEventListener('load', addCopyButtons);
+  onLoad(addCopyButtons);
 })();
 </script>

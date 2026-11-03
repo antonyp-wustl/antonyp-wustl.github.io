@@ -1,0 +1,22 @@
+---
+title: "Theorems"
+subtitle: "Every definition, theorem, lemma and conjecture from every post, in one searchable place. It fills itself in as I write."
+page-layout: article
+toc: false
+listing:
+  id: results
+  contents: posts
+  sort: "date desc"
+  template: _templates/post-index.ejs
+  template-params:
+    id: am-results-index
+  date-format: iso
+  fields: [title, date, categories, path]
+---
+
+::: {#results}
+:::
+
+```{=html}
+<div id="am-results" class="am-results"><noscript>This page needs JavaScript to collect results from the posts.</noscript></div>
+```

@@ -4,6 +4,7 @@ subtitle: "The prime spiral on the home page, explained"
 description: "Write the integers in a square spiral and the primes line up along diagonals. Two short arguments explain most of the pattern, and an open conjecture covers the rest."
 date: 2026-11-01
 categories: [Number Theory, Visual]
+series: "Looking at primes"
 ---
 
 The legend is that in 1963, sitting through a dull talk, Stanisław Ulam wrote the integers in a square spiral and circled the primes. They weren't randomly scattered. They lined up along diagonals.

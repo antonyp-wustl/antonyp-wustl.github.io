@@ -1,0 +1,12 @@
+---
+date: 2026-10-30
+categories: [Number Theory]
+---
+
+Wilson's theorem says $(p-1)! \equiv -1 \pmod p$ for every prime $p$. The slickest proof I know: in $\F_p^\times$ every element pairs off with its inverse, except the two elements that are their own inverse, $1$ and $-1$ (since $x^2 = 1$ means $p \mid (x-1)(x+1)$). So the whole product collapses to
+
+$$
+(p-1)! \equiv 1 \cdot (-1) \equiv -1 \pmod p.
+$$
+
+The converse holds too: if $n > 4$ is composite then $(n-1)! \equiv 0 \pmod n$.

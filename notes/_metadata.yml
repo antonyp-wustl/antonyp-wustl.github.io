@@ -1,0 +1,19 @@
+# Options for every note. Notes are single files: notes/<date>-<name>.qmd
+# Make one with:  .\new-note "Optional title" -Category "Number Theory"
+
+author: "Antony"
+toc: false
+title-block-banner: false
+citation: false
+reference-location: document
+
+# Hidden index used to build previous / next links between notes
+listing:
+  id: am-post-index
+  contents:
+    - "*.qmd"
+    - "!_*.qmd"
+  sort: "date desc"
+  template: ../_templates/post-index.ejs
+  date-format: iso
+  fields: [title, date, categories, path]

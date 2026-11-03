@@ -17,6 +17,10 @@ fig-cap-location: margin
 lightbox: auto
 code-tools: false
 
+# Share image for links on social media. scripts/cards.mjs draws one per post
+# after rendering; set `image:` in a post to use your own picture instead.
+image: card.png
+
 # Adds a "Cite this post" box (with BibTeX) at the end of each post
 citation: true
 appendix-cite-as: [display, bibtex]
@@ -32,10 +36,17 @@ listing:
   date-format: iso
   fields: [title, date, categories, reading-time, path]
 
-# Comments: create a giscus config at https://giscus.app and uncomment.
+# Comments (giscus, stored as GitHub Discussions on the repo). To switch on:
+#   1. Repo Settings → General → Features: tick "Discussions".
+#   2. Install the giscus app on the repo: https://github.com/apps/giscus
+#   3. Uncomment the block below and push.
 # comments:
 #   giscus:
-#     repo: antonyp-wustl/antony-mathematics
-#     category: Comments
+#     repo: antonyp-wustl/antonyp-wustl.github.io
+#     category: Announcements
 #     mapping: pathname
-#     theme: transparent_dark
+#     reactions-enabled: true
+#     input-position: top
+#     theme:
+#       light: light
+#       dark: transparent_dark

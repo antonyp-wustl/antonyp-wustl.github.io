@@ -1,6 +1,6 @@
 ---
 title: "Topics"
-subtitle: "Every category on the site, with all of its posts. Add a new one just by using it in a post."
+subtitle: "Every series and category on the site, with all of their posts. Add a new one just by using it in a post."
 page-layout: article
 toc: false
 listing:
@@ -8,5 +8,5 @@ listing:
   contents: posts
   sort: "date desc"
   template: _templates/topics.ejs
-  fields: [title, date, categories, path]
+  fields: [title, date, categories, series, path]
 ---

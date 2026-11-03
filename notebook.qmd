@@ -1,0 +1,31 @@
+---
+title: "Notebook"
+subtitle: "Short notes: a nice identity, a problem I liked, a half-formed thought. Newest first."
+page-layout: article
+toc: false
+listing:
+  id: notes
+  contents: notes
+  sort: "date desc"
+  template: _templates/post-index.ejs
+  template-params:
+    id: am-notes-index
+    fallback: true
+  date-format: iso
+  fields: [title, date, categories, path]
+  feed:
+    title: "antony-mathematics: notebook"
+    description: "Short notes on mathematics"
+    type: full
+---
+
+```{=html}
+<div id="am-notebook" class="am-notebook">
+```
+
+::: {#notes}
+:::
+
+```{=html}
+</div>
+```

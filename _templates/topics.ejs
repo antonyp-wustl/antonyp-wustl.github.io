@@ -6,12 +6,34 @@ for (const item of items) {
   }
 }
 const names = Object.keys(topics).sort((a, b) => a.localeCompare(b));
+// Posts with `series:` in their front matter, oldest part first.
+const series = {};
+for (const item of items.slice().reverse()) {
+  if (item.series) (series[item.series] = series[item.series] || []).push(item);
+}
+const seriesNames = Object.keys(series).sort((a, b) => a.localeCompare(b));
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 %>
 ```{=html}
 <nav class="am-topic-index" aria-label="Topics">
 <% for (const name of names) { %><a class="am-chip" href="#<%- slug(name) %>"><%= name %> <span><%= topics[name].length %></span></a><% } %>
 </nav>
+<% if (seriesNames.length) { %>
+<div class="am-series-sections">
+<% for (const name of seriesNames) { %>
+<section class="am-series-card" id="series-<%- slug(name) %>">
+  <header>
+    <span class="am-series-kicker">Series</span>
+    <h2><%= name %></h2>
+    <span class="am-topic-count-label"><%= series[name].length %> <%= series[name].length === 1 ? 'part' : 'parts' %></span>
+  </header>
+  <ol>
+  <% for (const item of series[name]) { %><li><a href="<%- item.path %>"><%= item.title %></a> <span class="am-topic-post-date"><%= item.date %></span></li>
+  <% } %></ol>
+</section>
+<% } %>
+</div>
+<% } %>
 <div class="am-topic-sections">
 <% for (const name of names) { %>
 <section class="am-topic-section" id="<%- slug(name) %>">

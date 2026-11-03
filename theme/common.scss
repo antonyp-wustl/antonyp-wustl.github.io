@@ -223,7 +223,8 @@ div.theorem.exercise .theorem-title strong { color: var(--am-ink); }
 div.proof { margin: 1.25rem 0 2.25rem; }
 div.proof .proof-title { font-family: $sans; font-style: normal; }
 div.proof .proof-title em { font-style: normal; font-weight: 600; }
-div.proof:not(.remark):not(.solution) > p:last-child::after {
+div.proof:not(.remark):not(.solution) > p:last-child::after,
+div.proof:not(.remark):not(.solution) > .am-fold-body > p:last-child::after {
   content: "";
   display: inline-block;
   float: right;
@@ -232,6 +233,55 @@ div.proof:not(.remark):not(.solution) > p:last-child::after {
   margin: 0.55em 0 0 1em;
   background: var(--am-accent);
 }
+
+// Foldable proofs: theme/site.html turns the "Proof." label into a toggle.
+div.proof.am-fold > .am-fold-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0 0 0.35rem;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: var(--am-ink);
+  font-family: $sans;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+.am-fold-label { font-weight: 600; }
+.am-fold-state {
+  font-size: 0.75rem;
+  color: var(--am-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.am-fold-state::before {
+  content: "";
+  display: inline-block;
+  width: 0.42em;
+  height: 0.42em;
+  margin: 0 0.45em 0.12em 0;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-135deg);
+  transition: transform 0.2s;
+}
+div.proof.am-fold > .am-fold-toggle:hover .am-fold-state,
+div.proof.am-fold > .am-fold-toggle:focus-visible .am-fold-state,
+div.proof.am-closed .am-fold-state { opacity: 1; }
+div.proof.am-fold > .am-fold-toggle:hover .am-fold-label { color: var(--am-accent-ink); }
+div.proof.am-closed > .am-fold-body { display: none; }
+div.proof.am-closed .am-fold-state::before { transform: rotate(45deg); }
+div.proof.am-closed {
+  padding: 0.55rem 0.9rem 0.2rem;
+  border: 1px dashed var(--am-rule-strong);
+  border-radius: 0.5rem;
+  transition: border-color 0.15s;
+}
+div.proof.am-closed:hover { border-color: var(--am-accent); }
+
 div.proof.remark {
   padding-left: 1rem;
   border-left: 1px dotted var(--am-rule-strong);
@@ -621,6 +671,242 @@ table { font-variant-numeric: tabular-nums; }
 .am-topic-posts a { color: var(--am-ink) !important; text-decoration: none !important; font-size: 1.1rem; }
 .am-topic-posts a:hover { color: var(--am-accent-ink) !important; }
 .am-topic-post-date { font-family: $mono; font-size: 0.78rem; color: var(--am-muted); white-space: nowrap; }
+
+// ---------------------------------------------------------------- series
+.am-series-kicker {
+  font-family: $sans;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--am-accent-ink);
+}
+.am-series {
+  margin: -1rem 0 2.5rem;
+  padding: 1rem 1.25rem 0.75rem;
+  border: 1px solid var(--am-rule);
+  border-radius: 0.6rem;
+  background: var(--am-surface);
+  font-family: $sans;
+}
+.am-series-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem; margin-bottom: 0.5rem; }
+.am-series-name { font-weight: 700; color: var(--am-ink) !important; text-decoration: none !important; }
+.am-series-name:hover { color: var(--am-accent-ink) !important; }
+.am-series-count { margin-left: auto; font-family: $mono; font-size: 0.78rem; color: var(--am-muted); }
+.am-series ol { margin: 0; padding-left: 1.4rem; font-size: 0.95rem; }
+.am-series li { padding: 0.15rem 0; color: var(--am-muted); }
+.am-series li::marker { font-family: $mono; font-size: 0.8em; color: var(--am-muted); }
+.am-series li a { color: var(--am-ink) !important; text-decoration: none !important; }
+.am-series li a:hover { color: var(--am-accent-ink) !important; }
+.am-series li.current { color: var(--am-accent-ink); font-weight: 600; }
+.am-series li.current::marker { color: var(--am-accent-ink); }
+
+.am-series-next {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.9rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--am-accent);
+  border-radius: 0.6rem;
+  background: var(--am-surface);
+  color: var(--am-ink) !important;
+  text-decoration: none !important;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.am-series-next:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -18px var(--am-accent); }
+.am-series-next small { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--am-accent-ink); }
+.am-series-next strong { font-size: 1.15rem; font-weight: 600; line-height: 1.25; }
+
+// Series on the Topics page
+.am-series-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1rem; margin: 0 0 3rem; }
+.am-series-card {
+  padding: 1.1rem 1.25rem 0.9rem;
+  border: 1px solid var(--am-rule);
+  border-left: 3px solid var(--am-accent);
+  border-radius: 0 0.6rem 0.6rem 0;
+  background: var(--am-surface);
+  scroll-margin-top: 5rem;
+}
+.am-series-card:target { border-color: var(--am-accent); }
+.am-series-card header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; margin-bottom: 0.5rem; }
+.am-series-card header .am-series-kicker { flex-basis: 100%; }
+.am-series-card h2 { border: none; padding: 0; margin: 0; font-size: 1.3rem; letter-spacing: -0.02em; }
+.am-series-card ol { margin: 0; padding-left: 1.3rem; }
+.am-series-card li { padding: 0.2rem 0; }
+.am-series-card li::marker { font-family: $mono; font-size: 0.8em; color: var(--am-muted); }
+.am-series-card li a { color: var(--am-ink) !important; text-decoration: none !important; }
+.am-series-card li a:hover { color: var(--am-accent-ink) !important; }
+.am-series-card .am-topic-post-date { display: none; }
+#listing-results { display: none !important; }
+
+// ---------------------------------------------------------------- page tools (under the TOC)
+.am-page-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--am-rule);
+}
+.am-page-tools.am-in-header { flex-direction: row; flex-wrap: wrap; border: 0; margin-top: 1rem; padding: 0; }
+.am-page-tools button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: $sans;
+  font-size: 0.82rem;
+  color: var(--am-muted);
+  cursor: pointer;
+}
+.am-page-tools.am-in-header button { padding: 0.3rem 0.7rem; border: 1px solid var(--am-rule-strong); border-radius: 999px; }
+.am-page-tools button:hover { color: var(--am-accent-ink); }
+.am-page-tools.am-narrow-only { display: none; }
+.am-page-tools.am-in-header kbd { display: none; }
+@media (max-width: 991.98px) { .am-page-tools.am-narrow-only { display: flex; } }
+.am-page-tools kbd {
+  margin-left: 0.3em;
+  padding: 0.05em 0.35em;
+  font-size: 0.72rem;
+  border: 1px solid var(--am-rule-strong);
+  border-radius: 0.25rem;
+  background: none;
+  color: inherit;
+  box-shadow: none;
+}
+
+// ---------------------------------------------------------------- theorems page
+.am-loading, .am-empty { font-family: $sans; color: var(--am-muted); }
+.am-results-controls {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 2rem;
+  padding: 0.75rem 0;
+  background: var(--am-bg);
+  border-bottom: 1px solid var(--am-rule);
+}
+.am-results-search {
+  width: 100%;
+  margin-bottom: 0.7rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--am-rule-strong);
+  border-radius: 0.5rem;
+  background: var(--am-surface);
+  color: var(--am-ink);
+  font-family: $sans;
+  font-size: 1rem;
+}
+.am-results-search::placeholder { color: var(--am-muted); }
+.am-results-search:focus { outline: none; border-color: var(--am-accent); }
+.am-results-types { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.am-chip.active { color: var(--am-on-accent) !important; background: var(--am-accent); border-color: var(--am-accent); }
+.am-results-post { margin: 0 0 2.5rem; }
+.am-results-post > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--am-rule);
+  font-family: $sans;
+}
+.am-results-post > header a { font-size: 1.15rem; font-weight: 600; color: var(--am-ink) !important; text-decoration: none !important; }
+.am-results-post > header a:hover { color: var(--am-accent-ink) !important; }
+.am-results-post > header span { font-family: $mono; font-size: 0.78rem; color: var(--am-muted); white-space: nowrap; }
+.am-result div.theorem { margin: 1.25rem 0 0.35rem; }
+.am-result-link {
+  display: block;
+  text-align: right;
+  font-family: $sans;
+  font-size: 0.8rem;
+  color: var(--am-muted) !important;
+  text-decoration: none !important;
+}
+.am-result-link:hover { color: var(--am-accent-ink) !important; }
+
+// ---------------------------------------------------------------- notebook
+.am-note-stream { display: flex; flex-direction: column; }
+.am-note { padding: 1.75rem 0; border-bottom: 1px solid var(--am-rule); }
+.am-note:first-child { padding-top: 0; }
+.am-note > header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin-bottom: 0.6rem; }
+.am-note-date {
+  margin-right: 0.3rem;
+  font-family: $mono;
+  font-size: 0.82rem;
+  color: var(--am-accent-ink) !important;
+  text-decoration: none !important;
+}
+.am-note-date:hover { text-decoration: underline !important; }
+.am-note > header .am-chip { font-size: 0.7rem; cursor: default; }
+.am-note > header .am-chip:hover { color: var(--am-muted) !important; background: transparent; border-color: var(--am-rule-strong); }
+.am-note-title { margin: 0 0 0.5rem; border: none; padding: 0; font-size: 1.35rem; letter-spacing: -0.02em; }
+.am-note-title a { color: var(--am-ink) !important; text-decoration: none !important; }
+.am-note-title a:hover { color: var(--am-accent-ink) !important; }
+.am-note-body > :last-child { margin-bottom: 0; }
+.am-note-more { margin-top: 1.75rem; align-self: flex-start; }
+.am-muted { color: var(--am-muted); }
+.am-fallback-list { font-family: $sans; }
+.am-fallback-list span { font-family: $mono; font-size: 0.8rem; color: var(--am-muted); margin-left: 0.5rem; }
+
+// Notebook strip on the home page
+.am-notes-mini { list-style: none; margin: 0 0 3.5rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.9rem; }
+.am-notes-mini a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  height: 100%;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--am-rule);
+  border-radius: 0.6rem;
+  color: var(--am-ink) !important;
+  text-decoration: none !important;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.am-notes-mini a:hover { border-color: var(--am-accent); transform: translateY(-2px); }
+.am-notes-mini-date { font-family: $mono; font-size: 0.75rem; color: var(--am-accent-ink); }
+.am-notes-mini-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+// ---------------------------------------------------------------- print
+// Printing a post (or "Save as PDF") gives a clean, light article.
+@media print {
+  :root, body.quarto-dark, body.quarto-light {
+    --am-bg: #fff;
+    --am-surface: #fff;
+    --am-raised: #fff;
+    --am-ink: #111;
+    --am-muted: #555;
+    --am-accent: #9a5b00;
+    --am-accent-ink: #7a4700;
+    --am-on-accent: #fff;
+    --am-rule: #ccc;
+    --am-rule-strong: #999;
+  }
+  @page { margin: 2cm 2.2cm; }
+  html, body { background: #fff !important; color: #111 !important; font-size: 11pt; }
+  #quarto-header, .nav-footer, #quarto-sidebar-toc-left, #quarto-margin-sidebar, .am-progress,
+  .am-post-end, .am-page-tools, .am-copy-tex, .code-copy-button, .anchorjs-link, #quarto-back-to-top,
+  .am-fold-state, .giscus, .quarto-appendix-bibtex, #listing-am-post-index { display: none !important; }
+  main.content { margin: 0 !important; max-width: none !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+  h1.title { font-size: 24pt; }
+  h2, h3 { break-after: avoid; }
+  div.theorem, div.proof, .callout, pre, figure, .katex-display { break-inside: avoid; }
+  div.theorem { background: none !important; }
+  div.proof.am-closed { border: 0; padding: 0; }
+  div.proof.am-closed > .am-fold-body { display: block !important; }
+  div.proof.am-fold > .am-fold-toggle { padding-bottom: 0.15rem; }
+  .am-series { background: none; }
+  .column-margin, .margin-aside { color: #555 !important; }
+}
 
 // ---------------------------------------------------------------- end of post
 .am-post-end {

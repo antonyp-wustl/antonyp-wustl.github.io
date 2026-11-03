@@ -5,6 +5,7 @@ description: "Every formatting feature the site supports, with the source next t
 date: 2026-11-02
 categories: [Meta]
 draft: true
+date-modified: 2026-11-02   # shows "Revised" next to the date
 ---
 
 This page is a draft, so `quarto preview` shows it but the published site never includes it. Open `posts/style-guide/index.qmd` next to this page to see the source for everything below.
@@ -53,12 +54,58 @@ Conjectures get a dashed rule.
 :::
 
 ::: {.proof}
-Proofs end with a filled square.
+Proofs end with a filled square. Click the word **Proof** to fold one away.
+:::
+
+::: {.proof collapse="true"}
+Add `collapse="true"` and the proof starts folded, so readers can try it themselves first.
+:::
+
+::: {#exr-demo}
+Show that $n^2 + n$ is always even.
+:::
+
+::: {.solution}
+Solutions start folded. $n^2 + n = n(n+1)$, and one of two consecutive integers is even. (Use `collapse="false"` to show one open.)
 :::
 
 ::: {.remark}
 Remarks are quieter.
 :::
+
+To fold every proof in a post, put `fold-proofs: true` in its front matter. Readers can always flip them all with **Hide all proofs** under the contents list, or the <kbd>p</kbd> key.
+
+Every definition, theorem, lemma, proposition, corollary and conjecture you write also appears on the **Theorems** page automatically, searchable, with a link back to the post.
+
+## Commutative diagrams
+
+KaTeX understands the `CD` environment from `amscd`. Keep `\begin{CD}` on the same line as the opening `$$` and `\end{CD}` on the same line as the closing one (otherwise Pandoc treats it as raw LaTeX):
+
+$$\begin{CD}
+A @>{f}>> B \\
+@V{g}VV @VV{h}V \\
+C @>>{k}> D
+\end{CD}$$
+
+Arrows are `@>>>` (right), `@<<<` (left), `@VVV` (down), `@AAA` (up) and `@=` (equals), with labels between the symbols: `@>{f}>>` puts $f$ above. For anything fancier (curved or diagonal arrows), draw it as an SVG and include it as an image.
+
+## Series
+
+Give posts the same `series:` in their front matter and they're linked together:
+
+```yaml
+series: "Galois theory from scratch"
+```
+
+Each part gets a box under the title listing every part (in date order), a "Next in the series" link at the bottom, and the series gets its own card on the Topics page.
+
+## Revised dates
+
+If you change a post substantially after publishing it, add `date-modified: 2026-12-01` to the front matter. It shows as "Revised" next to the original date.
+
+## Share images
+
+Every post gets its own preview image (title, categories and a patch of the prime spiral) when the site is published, so links look good in Discord, iMessage and so on. To use your own picture, add `image: my-picture.png` to the front matter.
 
 ## Callouts
 

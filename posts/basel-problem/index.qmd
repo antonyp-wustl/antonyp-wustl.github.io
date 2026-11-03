@@ -3,7 +3,7 @@ title: "The Basel problem, and where the π comes from"
 subtitle: "Why the sum of 1/n² equals π²/6"
 description: "A proof of the Basel sum using Fourier series and Parseval's identity, plus an interactive look at how slowly the partial sums converge."
 date: 2026-10-26
-categories: [Analysis, Series]
+categories: [Analysis, Infinite Series]
 ---
 
 In 1734 Euler announced that
