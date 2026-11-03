@@ -1,7 +1,7 @@
 ---
 title: "About"
-image: profile.jpg
-image-alt: "Photo of Antony"
+image: assets/dragon.svg
+image-alt: "A dragon curve fractal in marigold on navy"
 toc: false
 about:
   template: trestles
@@ -16,14 +16,18 @@ about:
       href: archive.xml
 ---
 
-Hi, I'm Antony. This is where I write up mathematics I find beautiful: proofs I keep coming back to, problems I'm stuck on, and the occasional picture that explains more than a page of algebra.
+Hi, I'm Antony, an undergraduate studying mathematics. This is where I write up the maths I enjoy most: proofs I keep coming back to, problems I've been stuck on, and the occasional picture that explains more than a page of algebra.
 
-<!-- Replace the paragraphs below with your own story. -->
+## What I'm into
 
-## Interests
+**Number theory.** Primes, congruences, and the strange patterns they leave behind, like the diagonals in the [Ulam spiral](posts/ulam-diagonals/) at the top of the home page.
 
-Number theory, analysis, and the places where they meet. I like arguments that are short once you see them and pictures that make a theorem feel inevitable.
+**Analysis.** Series, limits, and why $\pi$ keeps showing up in places it seems to have no business being.
+
+**Combinatorics and olympiad problems.** Short problems where one good idea makes everything fall into place.
 
 ## About this site
 
-Posts are written in [Quarto](https://quarto.org) markdown with $\LaTeX$ math, rendered with KaTeX, and hosted on GitHub Pages. Each post can be cited (there's a BibTeX entry at the bottom) and every equation can be copied as TeX by hovering it.
+Longer pieces live under [Writing](archive.qmd) and quick ones in the [Notebook](notebook.qmd). Every definition and theorem from every post is collected on the [Theorems](theorems.qmd) page.
+
+The picture is a dragon curve. Fold a strip of paper in half eight times, always in the same direction, then open it out so every crease makes a right angle: this is the shape you get. The curve never crosses itself, and four copies turned about a common point fit together to cover the whole plane.
