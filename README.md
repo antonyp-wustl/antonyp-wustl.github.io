@@ -61,13 +61,17 @@ This opens the site locally and re-renders as you save. Drafts are visible here.
 
 ## Publishing
 
-The site deploys to GitHub Pages through `.github/workflows/publish.yml` whenever you push to `main`.
+The site lives at **https://antonyp-wustl.github.io** and deploys through `.github/workflows/publish.yml` whenever you push to `main`:
 
-One-time setup:
+```bash
+git add -A
+git commit -m "New post"
+git push
+```
 
-1. Create a GitHub repo (e.g. `antonyp-wustl/antonyp-wustl.github.io` for a root URL) and push this folder to it.
-2. In the repo go to **Settings → Pages → Source** and choose **GitHub Actions**.
-3. If you use a repo name other than `<username>.github.io`, update `site-url` in `_quarto.yml` to match.
+The live site updates about a minute later; progress shows under the repo's **Actions** tab. Drafts are never published.
+
+(The repo's **Settings → Pages → Source** must stay on **GitHub Actions**. If it's ever switched back to "Deploy from a branch", GitHub publishes the raw source files instead of the built site.)
 
 ## Where things live
 
