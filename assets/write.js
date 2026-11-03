@@ -639,7 +639,7 @@
     katexReady.then(updatePreview);
   }
 
-  const liveUrl = (path) => LIVE + (isPost(path) ? path.replace(/index\.qmd$/, '') : path.replace(/\.qmd$/, '.html'));
+  const liveUrl = (path) => LIVE + (isPost(path) ? path.replace(/index\.qmd$/, '') : path.replace(/\.qmd$/, ''));
   const setStatus = (text, cls = '') => { const el = $('[data-status]'); if (el) { el.textContent = text; el.className = 'am-w-status ' + cls; } };
   const isFuture = (iso) => !!iso && iso > today();
   function syncSaveButton() {
@@ -842,7 +842,7 @@
         } else if (d.kind === 'problem') {
           if (!d.slug) throw new Error('The address can’t be empty.');
           path = `problems/${d.slug}.qmd`;
-          if (files.some((f) => f.path === path)) throw new Error(`There’s already a problem at /problems/${d.slug}.html. Change the address.`);
+          if (files.some((f) => f.path === path)) throw new Error(`There’s already a problem at /problems/${d.slug}. Change the address.`);
         } else {
           const stem = `notes/${d.meta.date}-${slugify(d.meta.title || '') || new Date().toTimeString().slice(0, 5).replace(':', '')}`;
           path = `${stem}.qmd`;

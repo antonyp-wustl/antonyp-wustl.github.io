@@ -4,7 +4,7 @@ My mathematics site, built with [Quarto](https://quarto.org). Posts are plain ma
 
 ## Writing from the website
 
-Go to **[/write.html](https://antonyp.com/write.html)**, log in, and write. The editor has a live preview with the site's own theorem boxes, maths and macros. Pressing **Publish** commits the file to this repo, and the site rebuilds itself about two minutes later. A note at the bottom right follows the rebuild and links to the page once it's live.
+Go to **[/write](https://antonyp.com/write)**, log in, and write. The editor has a live preview with the site's own theorem boxes, maths and macros. Pressing **Publish** commits the file to this repo, and the site rebuilds itself about two minutes later. A note at the bottom right follows the rebuild and links to the page once it's live.
 
 - **New post / New note / New problem** start from blank. Posts begin hidden: flip **Visible on site** before pressing the button to publish straight away.
 - **Scheduling**: leave **Visible on site** on and pick a future date. The button turns into **Schedule for …**, and the post goes live by itself that morning.
@@ -138,6 +138,8 @@ git push
 
 The live site updates about a minute later; progress shows under the repo's **Actions** tab. Drafts are never published.
 
+Addresses on the live site have no `.html`: `antonyp.com/about`, `antonyp.com/problems/mutilated-chessboard`. The last build step (`scripts/cleanurls.mjs`) rewrites the links, feeds, sitemap and search index, and gives every page a canonical address; GitHub Pages serves `/about` from `about.html` by itself, and old `.html` links keep working. Local preview still uses `.html`.
+
 Publishing also draws a share image for every post (`scripts/cards.mjs`), so links pasted into Discord, iMessage or X get a proper preview. To see them locally, run `quarto render` then `node scripts/cards.mjs`.
 
 (The repo's **Settings → Pages → Source** must stay on **GitHub Actions**. If it's ever switched back to "Deploy from a branch", GitHub publishes the raw source files instead of the built site.)
@@ -187,7 +189,7 @@ Every published post gets a **Download PDF (LaTeX)** link, typeset properly with
 | `write.qmd`, `assets/write.js` | The Write page |
 | `_quarto.yml` | Site settings: title, navbar, footer, links |
 | `theme/` | Colours (`dark.scss`, `light.scss`), styling (`common.scss`), macros, the site-wide script (`site.html`) a small filter for series, notes and problems (`am.lua`), and the figure shortcodes (`shortcodes.lua`) |
-| `scripts/` | Share images (`cards.mjs`), "Referenced by" lists (`backlinks.mjs`), PDFs (`pdfs.mjs`) and scheduled posts (`schedule.mjs`) |
+| `scripts/` | Share images (`cards.mjs`), "Referenced by" lists (`backlinks.mjs`), PDFs (`pdfs.mjs`), scheduled posts (`schedule.mjs`) and `.html`-free addresses (`cleanurls.mjs`) |
 | `_templates/` | How post lists look on the home, Writing and Topics pages |
 | `assets/` | Logo, the spiral animation, the self-hosted fonts (`fonts/`) and libraries (`vendor/`: KaTeX, marked, js-yaml) |
 | `.well-known/security.txt` | Where to report a security problem |

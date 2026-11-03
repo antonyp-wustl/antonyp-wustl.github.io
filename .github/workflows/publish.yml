@@ -66,6 +66,8 @@ jobs:
       - name: Typeset PDFs
         run: node scripts/pdfs.mjs
         continue-on-error: true     # a LaTeX problem never stops the site going up
+      - name: Drop .html from addresses
+        run: node scripts/cleanurls.mjs   # last, after everything that writes to _site
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa   # v3
         with:
           path: _site
