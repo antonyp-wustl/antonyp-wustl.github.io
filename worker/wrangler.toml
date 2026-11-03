@@ -1,0 +1,12 @@
+# For deploying the login helper from the command line instead of the Cloudflare
+# dashboard (see the README): npx wrangler deploy, then
+#   npx wrangler secret put GITHUB_CLIENT_SECRET
+# Live at https://antonyp-write-login.anthony92476.workers.dev
+name = "antonyp-write-login"
+main = "auth.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[vars]
+SITE = "https://antonyp.com"
+GITHUB_CLIENT_ID = "Iv23liJcwMRiyAlyqsWZ"      # the antonyp-write GitHub App's Client ID (public)

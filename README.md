@@ -15,11 +15,28 @@ Go to **[/write](https://antonyp.com/write)** and write. The editor has a live p
 - **Editing**: on a device you've logged in from, every post and note gets an **Edit this post** link, and the menu bar gets a **Write** link.
 - Unsent work autosaves in the browser, so closing the tab loses nothing. Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save to the site.
 
-**Setting it up on a new device (once):** the page walks you through making a GitHub key. It's a *fine-grained personal access token* limited to this repository, with *Contents: Read and write* and *Actions: Read-only*. You then choose a passphrase. The key is stored only in that browser, locked with the passphrase, and is only ever sent to GitHub. With **Stay logged in on this device** ticked (the default), the page opens straight into the editor from then on, until you press **Log out**; after that it asks for the passphrase again. Untick it on a shared computer. If a device is lost, delete the token at [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens) and it stops working everywhere.
+**Logging in:** press **Log in with GitHub**, approve, and you're in the editor; the device stays logged in until you press **Log out**. Only an account that can push to this repo can publish. (This needs the one-time setup below. Until it's done, or if you press *Use a GitHub key instead*, the page uses the older key-and-passphrase login described next.)
+
+**Key-and-passphrase login:** the page walks you through making a GitHub key. It's a *fine-grained personal access token* limited to this repository, with *Contents: Read and write* and *Actions: Read-only*. You then choose a passphrase. The key is stored only in that browser, locked with the passphrase, and is only ever sent to GitHub. With **Stay logged in on this device** ticked (the default), the page opens straight into the editor from then on, until you press **Log out**; after that it asks for the passphrase again. Untick it on a shared computer. If a device is lost, delete the token at [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens) and it stops working everywhere.
 
 **As an app:** the Write page can be installed like an app, with its own icon. On a phone, open antonyp.com/write and choose *Add to Home Screen* (iPhone: Share button; Android: ⋮ menu). On a computer, use the install icon in Chrome or Edge's address bar. Long-pressing the icon offers **New post**, **New note** and **New problem** (Android and computers).
 
 The page itself is `write.qmd`, the editor is `assets/write.js`, and the LaTeX converter is `assets/latex.js`. Everything below still works if you'd rather write in files.
+
+### Setting up "Log in with GitHub" (once, about 10 minutes)
+
+GitHub only finishes a login for a server that holds a secret, and this site has no server, so a tiny free [Cloudflare Worker](https://workers.cloudflare.com) (`worker/auth.js`) does that one step. It stores nothing; it swaps GitHub's one-time code for a token and sends you back to the Write page. Tokens can only edit this repository and read its build status, last 8 hours and renew themselves, and stop working when you log out or uninstall the app.
+
+1. **The Worker.** Sign up at [dash.cloudflare.com](https://dash.cloudflare.com) (free). Go to **Workers & Pages → Create → Create Worker**, name it `antonyp-write-login` and press **Deploy**. Press **Edit code**, replace everything with the contents of `worker/auth.js`, and press **Deploy** again. Note its address: `https://antonyp-write-login.<your-name>.workers.dev`.
+2. **The GitHub App.** Open [this prefilled form](https://github.com/settings/apps/new?name=antonyp-write&description=Logs%20in%20to%20the%20Write%20page%20on%20antonyp.com&url=https%3A%2F%2Fantonyp.com%2Fwrite&public=false&webhook_active=false&contents=write&actions=read) (GitHub → Settings → Developer settings → GitHub Apps → New). Set **Callback URL** to the Worker's address followed by `/callback`. Leave *Expire user authorization tokens* ticked. Check that **Webhook → Active** is off, that **Repository permissions** shows *Contents: Read and write* and *Actions: Read-only*, and that it can be installed *Only on this account*. Press **Create GitHub App**. (If the name is taken, pick another.)
+3. **Its keys.** On the new app's page, copy the **Client ID**, then press **Generate a new client secret** and copy that too (GitHub shows it once).
+4. **Give the Worker the keys.** In Cloudflare, open the Worker → **Settings → Variables and Secrets** and add `GITHUB_CLIENT_ID` (Text: the Client ID), `GITHUB_CLIENT_SECRET` (Secret: the client secret) and `SITE` (Text: `https://antonyp.com`). Press **Deploy** if it asks.
+5. **Install the app on the repo.** On the app's page, choose **Install App → Install → Only select repositories → antonyp-wustl.github.io**.
+6. **Switch it on.** Put the Worker's address in `data-auth="…"` in `write.qmd` and publish. The Write page then shows **Log in with GitHub**.
+
+If you'd rather use the command line for step 1, `worker/wrangler.toml` is set up for `npx wrangler deploy` (then `npx wrangler secret put GITHUB_CLIENT_ID` and `… GITHUB_CLIENT_SECRET`).
+
+To cut off every login at once: GitHub → Settings → Applications → *antonyp-write* → Revoke (or uninstall the app). If the secret ever leaks, generate a new one on the app page and replace it in Cloudflare.
 
 ## Problems
 
@@ -190,6 +207,7 @@ Every published post gets a **Download PDF (LaTeX)** link, typeset properly with
 | `index.qmd` | Home page (prime-spiral hero, latest posts, topics) |
 | `archive.qmd`, `notebook.qmd`, `problems.qmd`, `topics.qmd`, `theorems.qmd`, `about.qmd` | The other pages |
 | `write.qmd`, `assets/write.js`, `assets/latex.js` | The Write page, and its LaTeX converter |
+| `worker/` | The "Log in with GitHub" helper (a Cloudflare Worker, not part of the site) |
 | `publish`, `new-post`, `new-note` | One-command publishing and starting posts/notes (`.ps1` scripts; the `.cmd` twins run them from any terminal) |
 | `_quarto.yml` | Site settings: title, navbar, footer, links |
 | `theme/` | Colours (`dark.scss`, `light.scss`), styling (`common.scss`), macros, the site-wide script (`site.html`) a small filter for series, notes and problems (`am.lua`), and the figure shortcodes (`shortcodes.lua`) |

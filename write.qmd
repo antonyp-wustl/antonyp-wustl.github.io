@@ -15,8 +15,10 @@ include-in-header:
 ```{=html}
 <!-- The editor (assets/write.js) commits straight to the GitHub repo below.
      Pushing to main runs .github/workflows/publish.yml, which rebuilds the site.
-     The manifest lets phones and computers install this page as a "Write" app. -->
-<div id="am-write" class="am-write" data-owner="antonyp-wustl" data-repo="antonyp-wustl.github.io" data-branch="main" data-site="https://antonyp.com">
+     The manifest lets phones and computers install this page as a "Write" app.
+     data-auth is the login helper (worker/auth.js) behind "Log in with GitHub";
+     leave it empty and only the key-and-passphrase login is offered. -->
+<div id="am-write" class="am-write" data-owner="antonyp-wustl" data-repo="antonyp-wustl.github.io" data-branch="main" data-site="https://antonyp.com" data-auth="https://antonyp-write-login.anthony92476.workers.dev">
   <noscript>The editor needs JavaScript.</noscript>
 </div>
 <script src="assets/vendor/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi"></script>

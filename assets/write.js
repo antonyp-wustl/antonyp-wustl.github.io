@@ -12,6 +12,9 @@
   const R = `/repos/${owner}/${repo}`;
   const LIVE = host.dataset.site ? host.dataset.site.replace(/\/?$/, '/') : /\.github\.io$/.test(repo) ? `https://${repo}/` : '';
   const RAW = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/`;
+  // The login helper (worker/auth.js) behind "Log in with GitHub". Without it, only the
+  // key-and-passphrase login is offered.
+  const AUTH = (host.dataset.auth || '').replace(/\/$/, '');
   const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new?' + new URLSearchParams({
     name: 'antony-mathematics editor',
     description: 'Lets the Write page on the site publish posts.',
@@ -32,7 +35,7 @@
     keys: () => { try { return Object.keys(area()); } catch (_) { return []; } },
   });
   const local = safe(() => localStorage), tab = safe(() => sessionStorage);
-  const KEY = { auth: 'am-write:auth', session: 'am-write:session', remember: 'am-write:remember', cache: 'am-write:meta', draft: 'am-write:draft:' };
+  const KEY = { auth: 'am-write:auth', session: 'am-write:session', remember: 'am-write:remember', who: 'am-write:who', cache: 'am-write:meta', draft: 'am-write:draft:' };
   const today = () => new Date().toLocaleDateString('en-CA');            // YYYY-MM-DD in local time
   const slugify = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
     .replace(/\$[^$]*\$/g, '').replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
@@ -111,9 +114,47 @@
     deviceStore('readwrite', (s) => s.delete('device')).catch(() => {});
   }
 
+  // -------------------------------------------------------------- the session
+  // What a login leaves: { token } for a key, or for "Log in with GitHub" also a refresh
+  // token and expiry times (those tokens last 8 hours and are renewed quietly).
+  let token = null, me = null, session = null;
+  const parseSession = (s) => {
+    if (!s) return null;
+    try { const o = JSON.parse(s); return o && o.token ? o : null; } catch (_) { return { token: s }; }    // older: the bare token
+  };
+  const fromGitHub = (t) => ({
+    via: 'github', token: t.token, refresh: t.refresh || '',
+    expires: +t.expires_in ? Date.now() + t.expires_in * 1000 : 0,
+    refreshExpires: +t.refresh_expires_in ? Date.now() + t.refresh_expires_in * 1000 : 0,
+  });
+  async function startSession(s, stay) {
+    session = s;
+    token = s.token;
+    const str = JSON.stringify(s);
+    tab.set(KEY.session, str);
+    if (stay) await remember(str);
+  }
+  let refreshing = null;
+  function refreshSession() {
+    if (!AUTH || !session?.refresh) return Promise.resolve(false);
+    refreshing ||= (async () => {
+      try {
+        const res = await fetch(AUTH + '/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: session.refresh }) });
+        if (!res.ok) return false;
+        await startSession(fromGitHub(await res.json()), !!local.get(KEY.remember));
+        return true;
+      } catch (_) {
+        return false;
+      } finally {
+        refreshing = null;
+      }
+    })();
+    return refreshing;
+  }
+
   // -------------------------------------------------------------- GitHub API
-  let token = null, me = null;
-  async function gh(path, opts = {}) {
+  async function gh(path, opts = {}, retried = false) {
+    if (session?.expires && session.expires - Date.now() < 5 * 60e3) await refreshSession();
     const res = await fetch(path.startsWith('http') ? path : API + path, {
       method: opts.method || 'GET',
       headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}`, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) },
@@ -121,17 +162,19 @@
       cache: 'no-store',
     });
     if (!res.ok) {
+      if (res.status === 401 && !retried && await refreshSession()) return gh(path, opts, true);
       let msg = res.statusText;
       try { msg = (await res.json()).message || msg; } catch (_) { /* not JSON */ }
       const err = new Error(msg);
       err.status = res.status;
-      if (res.status === 401) { tab.del(KEY.session); forgetDevice(); token = null; }
+      if (res.status === 401) { tab.del(KEY.session); forgetDevice(); token = null; session = null; }
       throw err;
     }
     return res.status === 204 ? null : res.json();
   }
   const explain = (e) => {
-    if (e.status === 401) return 'GitHub didn’t accept the token. It may have expired: make a new one and connect again.';
+    if (e.status === 401) return AUTH ? 'GitHub has logged you out. Log in again.' : 'GitHub didn’t accept the token. It may have expired: make a new one and connect again.';
+    if ((e.status === 403 || e.status === 404) && session?.via === 'github') return `Your GitHub login can’t write to ${repo}. Check that the site’s GitHub App is installed on that repository (GitHub → Settings → Applications).`;
     if (e.status === 403 || e.status === 404) return `The token can’t write to ${repo}. Check that it has access to that repository with “Contents: Read and write”.`;
     if (e instanceof TypeError) return 'Couldn’t reach GitHub. Check your connection and try again.';
     return e.message || String(e);
@@ -400,8 +443,25 @@
     show(`<div class="am-w-center"><p class="am-loading">${esc(text)}</p></div>`);
   }
 
-  function viewGate(error) {
+  const GITHUB_MARK = '<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>';
+  const savedWho = () => { try { return JSON.parse(local.get(KEY.who)) || savedAuth(); } catch (_) { return savedAuth(); } };
+
+  // `mode` 'key' shows the older key-and-passphrase login even when "Log in with GitHub" is set up.
+  function viewGate(error, mode) {
     const auth = savedAuth();
+    if (AUTH && mode !== 'key') {
+      const who = savedWho();
+      show(`<section class="am-w-gate"><div class="am-w-card">
+        <p class="am-w-kicker">Write</p>
+        <h1>${who?.name ? `Welcome back, ${esc(who.name.split(' ')[0])}` : 'Log in to write'}</h1>
+        <p>Sign in with your GitHub account, then write and publish straight to the site. This device stays logged in until you log out.</p>
+        <a class="am-button am-w-github" href="${esc(AUTH)}/login">${GITHUB_MARK}Log in with GitHub</a>
+        <p class="am-w-error" role="alert"${error ? '' : ' hidden'}>${esc(error || '')}</p>
+        <p class="am-w-fine"><button type="button" class="am-w-link" data-act="use-key">${auth ? 'Log in with your passphrase instead' : 'Use a GitHub key instead'}</button></p>
+      </div></section>`);
+      return;
+    }
+    const other = AUTH ? '<p class="am-w-fine"><button type="button" class="am-w-link" data-act="use-github">← Log in with GitHub instead</button></p>' : '';
     if (auth) {
       show(`<section class="am-w-gate"><div class="am-w-card">
         <p class="am-w-kicker">Write</p>
@@ -414,6 +474,7 @@
         </form>
         <p class="am-w-error" role="alert"${error ? '' : ' hidden'}>${esc(error || '')}</p>
         <p class="am-w-fine"><button type="button" class="am-w-link" data-act="forget">Forget this device</button> to connect a different token.</p>
+        ${other}
       </div></section>`);
       $('[name=pass]').focus();
       return;
@@ -436,6 +497,7 @@
         <button class="am-button" type="submit">Connect</button>
       </form>
       <p class="am-w-error" role="alert"${error ? '' : ' hidden'}>${esc(error || '')}</p>
+      ${other}
     </div></section>`);
   }
 
@@ -451,8 +513,8 @@
       await gh(R);
       const sealed = await seal(token, String(f.get('pass')));
       local.set(KEY.auth, JSON.stringify({ v: 1, login: me.login, name: me.name || '', ...sealed }));
-      tab.set(KEY.session, token);
-      if (f.get('stay')) await remember(token);
+      local.set(KEY.who, JSON.stringify({ login: me.login, name: me.name || '' }));
+      await startSession({ token }, !!f.get('stay'));
       route();
     } catch (e) {
       token = null;
@@ -470,22 +532,41 @@
     try {
       token = await unseal(auth, String(f.get('pass')));
     } catch (_) {
-      return viewGate('That passphrase doesn’t match.');
+      return viewGate('That passphrase doesn’t match.', 'key');
     }
     try {
       me = await gh('/user');
-      tab.set(KEY.session, token);
-      if (f.get('stay')) await remember(token);
+      await startSession({ token }, !!f.get('stay'));
       route();
     } catch (e) {
-      viewGate(explain(e));
+      viewGate(explain(e), 'key');
     }
+  }
+
+  // Back from GitHub with #login=… (or #login-error=…) from the login helper.
+  async function finishGitHubLogin(fragment) {
+    history.replaceState(null, '', location.pathname + location.search);      // the token leaves the address bar at once
+    if (fragment.startsWith('login-error=')) return viewGate(decodeURIComponent(fragment.slice(12)));
+    viewLoading('Logging in…');
+    const t = Object.fromEntries(new URLSearchParams(decodeURIComponent(fragment.slice(6))));
+    if (!t.token) return viewGate('GitHub didn’t send a login. Try again.');
+    await startSession(fromGitHub(t), true);
+    try {
+      me = await gh('/user');
+      local.set(KEY.who, JSON.stringify({ login: me.login, name: me.name || '' }));
+      const can = (await gh(R)).permissions;
+      if (can && !can.push) throw Object.assign(new Error(`${me.login} can’t edit ${repo}, so this login can’t publish. Log in with the account that owns the site.`), { status: 0 });
+    } catch (e) {
+      tab.del(KEY.session); forgetDevice(); token = null; session = null;
+      return viewGate(explain(e));
+    }
+    return true;
   }
 
   function logout() {
     tab.del(KEY.session);
     forgetDevice();
-    token = null; me = null; entries = null;
+    token = null; me = null; entries = null; session = null;
     location.hash = '';
     viewGate();
   }
@@ -1093,9 +1174,11 @@
     if (!t) return;
     const act = t.dataset.act;
     if (act === 'forget') {
-      if (confirm('Forget the saved key on this device? You’ll need to paste a key again to log in here.')) { local.del(KEY.auth); logout(); }
+      if (confirm('Forget the saved key on this device? You’ll need to paste a key again to log in here.')) { local.del(KEY.auth); local.del(KEY.who); logout(); }
     }
     if (act === 'logout') logout();
+    if (act === 'use-key') viewGate(null, 'key');
+    if (act === 'use-github') viewGate();
     if (act === 'import') $('[data-import]').click();
     if (act === 'publish') save('live');
     if (act === 'draft') save('draft');
@@ -1212,11 +1295,16 @@
     if (!window.marked || !window.jsyaml || !window.crypto?.subtle) {
       return show('<div class="am-w-center"><p class="am-w-error">The editor couldn’t load. It needs a modern browser and an https:// address.</p></div>');
     }
-    if (!token) token = tab.get(KEY.session);
+    if (/^#login(-error)?=/.test(location.hash) && (await finishGitHubLogin(location.hash.slice(1))) !== true) return;
+    if (!token) {
+      session = parseSession(tab.get(KEY.session));
+      token = session?.token || null;
+    }
     if (!token && local.get(KEY.remember)) {
       viewLoading('Logging in…');
-      token = await recall();
-      if (token) tab.set(KEY.session, token);
+      session = parseSession(await recall());
+      token = session?.token || null;
+      if (token) tab.set(KEY.session, JSON.stringify(session));
     }
     if (!token) return viewGate();
     if (!me) {

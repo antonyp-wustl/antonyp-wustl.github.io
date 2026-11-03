@@ -46,7 +46,7 @@
 
   // -------------------------------------------------- "Write" link, on devices that have logged in to write.html
   let writer = false;
-  try { writer = !!localStorage.getItem('am-write:auth'); } catch (_) { /* storage blocked */ }
+  try { writer = !!(localStorage.getItem('am-write:auth') || localStorage.getItem('am-write:who')); } catch (_) { /* storage blocked */ }
   const editHref = writer && page?.dataset.src ? `${sitePage('write')}#edit=${encodeURIComponent(page.dataset.src)}` : '';
   if (writer && !document.getElementById('am-write')) {
     document.querySelector('.navbar-nav.me-auto')?.insertAdjacentHTML('beforeend',
