@@ -1,0 +1,22 @@
+{
+  "name": "Write · antony-mathematics",
+  "short_name": "Write",
+  "description": "Write and publish posts, notes and problems on antonyp.com.",
+  "id": "/write",
+  "start_url": "/write",
+  "scope": "/write",
+  "display": "standalone",
+  "background_color": "#142449",
+  "theme_color": "#142449",
+  "icons": [
+    { "src": "/assets/icons/write-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/icons/write-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/icons/write-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/assets/logo.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "New post", "url": "/write#new=post" },
+    { "name": "New note", "url": "/write#new=note" },
+    { "name": "New problem", "url": "/write#new=problem" }
+  ]
+}

@@ -4,16 +4,23 @@ page-layout: full
 toc: false
 search: false
 include-in-header:
-  - text: <meta name="robots" content="noindex">
+  - text: |
+      <meta name="robots" content="noindex">
+      <link rel="manifest" href="/assets/write.webmanifest">
+      <link rel="apple-touch-icon" href="/assets/icons/write-180.png">
+      <meta name="apple-mobile-web-app-title" content="Write">
+      <meta name="theme-color" content="#142449">
 ---
 
 ```{=html}
 <!-- The editor (assets/write.js) commits straight to the GitHub repo below.
-     Pushing to main runs .github/workflows/publish.yml, which rebuilds the site. -->
+     Pushing to main runs .github/workflows/publish.yml, which rebuilds the site.
+     The manifest lets phones and computers install this page as a "Write" app. -->
 <div id="am-write" class="am-write" data-owner="antonyp-wustl" data-repo="antonyp-wustl.github.io" data-branch="main" data-site="https://antonyp.com">
   <noscript>The editor needs JavaScript.</noscript>
 </div>
 <script src="assets/vendor/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi"></script>
 <script src="assets/vendor/js-yaml.min.js" integrity="sha384-+pxiN6T7yvpryuJmE1gM9PX7yQit15auDb+ZwwvJOd/4be2Cie5/IuVXgQb/S9du"></script>
+<script src="assets/latex.js"></script>
 <script src="assets/write.js"></script>
 ```

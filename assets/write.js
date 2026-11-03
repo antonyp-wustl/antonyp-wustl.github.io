@@ -32,7 +32,7 @@
     keys: () => { try { return Object.keys(area()); } catch (_) { return []; } },
   });
   const local = safe(() => localStorage), tab = safe(() => sessionStorage);
-  const KEY = { auth: 'am-write:auth', session: 'am-write:session', cache: 'am-write:meta', draft: 'am-write:draft:' };
+  const KEY = { auth: 'am-write:auth', session: 'am-write:session', remember: 'am-write:remember', cache: 'am-write:meta', draft: 'am-write:draft:' };
   const today = () => new Date().toLocaleDateString('en-CA');            // YYYY-MM-DD in local time
   const slugify = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
     .replace(/\$[^$]*\$/g, '').replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
@@ -72,6 +72,45 @@
   }
   const savedAuth = () => { try { return JSON.parse(local.get(KEY.auth)); } catch (_) { return null; } };
 
+  // "Stay logged in": the token is also kept encrypted with a key that this browser
+  // generates and can't export (it lives in IndexedDB), so this device opens the editor
+  // without the passphrase until you log out. A copy of the browser's files alone is no use.
+  function deviceStore(mode, fn) {
+    return new Promise((resolve, reject) => {
+      const open = indexedDB.open('am-write', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('keys');
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const tx = open.result.transaction('keys', mode);
+        const req = fn(tx.objectStore('keys'));
+        tx.oncomplete = () => { open.result.close(); resolve(req.result); };
+        tx.onerror = () => reject(tx.error);
+      };
+    });
+  }
+  async function remember(secret) {
+    try {
+      const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(secret));
+      await deviceStore('readwrite', (s) => s.put(key, 'device'));
+      local.set(KEY.remember, JSON.stringify({ iv: toB64(iv), ct: toB64(new Uint8Array(ct)) }));
+    } catch (_) { /* private window or storage blocked: just ask next time */ }
+  }
+  async function recall() {
+    try {
+      const rec = JSON.parse(local.get(KEY.remember));
+      if (!rec) return null;
+      const key = await deviceStore('readonly', (s) => s.get('device'));
+      if (!key) return null;
+      return dec.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(rec.iv) }, key, fromB64(rec.ct)));
+    } catch (_) { return null; }
+  }
+  function forgetDevice() {
+    local.del(KEY.remember);
+    deviceStore('readwrite', (s) => s.delete('device')).catch(() => {});
+  }
+
   // -------------------------------------------------------------- GitHub API
   let token = null, me = null;
   async function gh(path, opts = {}) {
@@ -86,7 +125,7 @@
       try { msg = (await res.json()).message || msg; } catch (_) { /* not JSON */ }
       const err = new Error(msg);
       err.status = res.status;
-      if (res.status === 401) { tab.del(KEY.session); token = null; }
+      if (res.status === 401) { tab.del(KEY.session); forgetDevice(); token = null; }
       throw err;
     }
     return res.status === 204 ? null : res.json();
@@ -220,6 +259,7 @@
     for (let i = 0; i < parts.length; i += 2) {
       parts[i] = footnotes(parts[i]
         .replace(/\{\{<\s*([\w-]+)\s*([\s\S]*?)>\}\}/g, (m, name, args) => tok('S', codes.push(shortcode(name, args)) - 1))
+        .replace(/^(#{1,6}[ \t].*?)[ \t]*\{[#.][^}]*\}[ \t]*$/gm, '$1')      // heading attributes like {#sec-intro}
         // [](../other-post/#thm-x): the site fills in the theorem's name; show its label here
         .replace(/\[\]\(([^)\s]*#((?:thm|lem|cor|prp|cnj|def|exm|exr)-[\w-]+))\)/g, '[$2 ↗]($1)')
         .replace(/\$\$([\s\S]+?)\$\$([ \t]*\{#(eq-[\w-]+)\})?/g, (m, tex, _, id) => tok('M', math.push({ tex, display: true, id }) - 1))
@@ -369,6 +409,7 @@
         <form class="am-w-form" data-form="unlock">
           <input type="text" name="username" autocomplete="username" value="${esc(auth.login || '')}" hidden>
           <label>Passphrase<input type="password" name="pass" autocomplete="current-password" required autofocus></label>
+          <label class="am-w-check"><input type="checkbox" name="stay" checked>Stay logged in on this device</label>
           <button class="am-button" type="submit">Log in</button>
         </form>
         <p class="am-w-error" role="alert"${error ? '' : ' hidden'}>${esc(error || '')}</p>
@@ -391,6 +432,7 @@
       </ol>
       <form id="am-w-connect" class="am-w-form" data-form="connect">
         <input type="text" name="username" autocomplete="username" value="${esc(owner)}" hidden>
+        <label class="am-w-check"><input type="checkbox" name="stay" checked>Stay logged in on this device</label>
         <button class="am-button" type="submit">Connect</button>
       </form>
       <p class="am-w-error" role="alert"${error ? '' : ' hidden'}>${esc(error || '')}</p>
@@ -410,6 +452,7 @@
       const sealed = await seal(token, String(f.get('pass')));
       local.set(KEY.auth, JSON.stringify({ v: 1, login: me.login, name: me.name || '', ...sealed }));
       tab.set(KEY.session, token);
+      if (f.get('stay')) await remember(token);
       route();
     } catch (e) {
       token = null;
@@ -423,14 +466,16 @@
     const btn = form.querySelector('button');
     btn.disabled = true;
     btn.textContent = 'Checking…';
+    const f = new FormData(form);
     try {
-      token = await unseal(auth, String(new FormData(form).get('pass')));
+      token = await unseal(auth, String(f.get('pass')));
     } catch (_) {
       return viewGate('That passphrase doesn’t match.');
     }
     try {
       me = await gh('/user');
       tab.set(KEY.session, token);
+      if (f.get('stay')) await remember(token);
       route();
     } catch (e) {
       viewGate(explain(e));
@@ -439,6 +484,7 @@
 
   function logout() {
     tab.del(KEY.session);
+    forgetDevice();
     token = null; me = null; entries = null;
     location.hash = '';
     viewGate();
@@ -471,6 +517,8 @@
           <a class="am-button" href="#new=post">New post</a>
           <a class="am-button am-button-ghost" href="#new=note">New note</a>
           <a class="am-button am-button-ghost" href="#new=problem">New problem</a>
+          <button type="button" class="am-button am-button-ghost" data-act="import" title="Turn a .tex, .md or .qmd file into a new post (or drop one anywhere on this page)">Import a file…</button>
+          <input type="file" accept=".tex,.md,.qmd,.markdown,.txt" hidden data-import>
           <button type="button" class="am-w-link" data-act="logout">Log out</button>
         </div>
       </header>
@@ -553,7 +601,7 @@
 
   function renderEditor() {
     const d = doc, m = d.meta, post = d.kind === 'post', problem = d.kind === 'problem';
-    const visible = m.draft !== true || m.scheduled === true;     // scheduled = visible from its date on
+    const live = stateOf(d) === 'live';
     const slugged = d.isNew && (post || problem);
     const cats = new Set([].concat(m.categories || []));
     const chips = [...new Set([...allCategories(), ...cats])];
@@ -562,11 +610,12 @@
         <a class="am-w-link" href="#">← All writing</a>
         <span class="am-w-status" aria-live="polite" data-status></span>
         <span class="am-w-top-actions">
-          <label class="am-w-switch" title="Hidden posts are saved but don’t appear on the site"><input type="checkbox" data-field="visible"${visible ? ' checked' : ''}><span></span>Visible on site</label>
-          <button type="button" class="am-button" data-act="save"></button>
+          <button type="button" class="am-button am-button-ghost" data-act="draft" title="Save it without putting it on the site"></button>
+          <button type="button" class="am-button" data-act="publish"></button>
           <details class="am-w-more"><summary aria-label="More actions">⋯</summary><div>
             ${d.isNew ? '' : `<a href="https://github.com/${owner}/${repo}/blob/${branch}/${esc(d.path)}" target="_blank" rel="noopener">Open on GitHub ↗</a>`}
-            ${d.isNew || !visible || !LIVE ? '' : `<a href="${esc(liveUrl(d.path))}" target="_blank" rel="noopener">View on the site ↗</a>`}
+            ${!live || !LIVE ? '' : `<a href="${esc(liveUrl(d.path))}" target="_blank" rel="noopener">View on the site ↗</a>`}
+            ${live ? '<button type="button" data-act="unpublish">Take off the site…</button>' : ''}
             ${d.isNew ? '' : '<button type="button" data-act="history">Earlier versions…</button>'}
             <button type="button" data-act="delete">${d.isNew ? 'Discard' : 'Delete…'}</button>
           </div></details>
@@ -586,7 +635,7 @@
           ${problem ? `<label>Source<input data-field="source" value="${esc(m.source || '')}" placeholder="IMO 2019 P1, Putnam 2003 A2…"></label>
           <label>Difficulty<select data-field="difficulty">${[1, 2, 3, 4, 5].map((n) => `<option value="${n}"${+m.difficulty === n ? ' selected' : ''}>${n} · ${['warm-up', 'easy', 'medium', 'hard', 'very hard'][n - 1]}</option>`).join('')}</select></label>` : ''}
           ${slugged ? `<label class="am-w-grow">Address<span class="am-w-addr">/${post ? 'posts' : 'problems'}/<input data-field="slug" value="${esc(d.slug || slugify(m.title || ''))}" spellcheck="false" placeholder="from-the-title">${post ? '/' : '.html'}</span></label>` : ''}
-          ${!d.isNew && visible ? `<label class="am-w-check"><input type="checkbox" data-field="revised"${m['date-modified'] === today() ? ' checked' : ''}>Mark as revised today</label>` : ''}
+          ${live ? `<label class="am-w-check"><input type="checkbox" data-field="revised"${m['date-modified'] === today() ? ' checked' : ''}>Mark as revised today</label>` : ''}
         </div>
         <div class="am-w-cats" role="group" aria-label="Categories">
           <span class="am-w-cats-label">Categories</span>
@@ -625,14 +674,14 @@
             <input type="file" accept="image/*" multiple hidden data-file>
           </div>
           <textarea data-field="body" spellcheck="true" placeholder="${post ? 'Start writing. Maths goes between $ signs: $e^{i\\pi} + 1 = 0$.' : problem ? 'The statement, then hints, then the solution.' : 'A quick thought, a neat proof, a problem…'}" aria-label="Text">${esc(d.body)}</textarea>
-          <div class="am-w-drop" hidden>Drop pictures to add them</div>
+          <div class="am-w-drop" hidden>Drop pictures, or a .tex or .md file</div>
         </div>
         <article class="am-w-preview" aria-label="Preview">
           <header class="am-w-pv-head"></header>
           <div class="am-w-pv-body"></div>
         </article>
       </div>
-      <p class="am-w-hint">Markdown and LaTeX, exactly as in a <code>.qmd</code> file: <code>::: {#thm-name}</code> blocks (a <code>## Name</code> line inside names the theorem), <code>@thm-name</code> references, <code>^[side notes]</code>, and the site’s macros like <code>\\R</code>. <kbd>Ctrl</kbd>+<kbd>S</kbd> saves.</p>
+      <p class="am-w-hint">Markdown and LaTeX, exactly as in a <code>.qmd</code> file: <code>::: {#thm-name}</code> blocks (a <code>## Name</code> line inside names the theorem), <code>@thm-name</code> references, <code>^[side notes]</code>, and the site’s macros like <code>\\R</code>. Pasted LaTeX (theorems, <code>\\ref</code>, <code>align</code>, lists…) is converted for you. <kbd>Ctrl</kbd>+<kbd>S</kbd> saves.</p>
     </div>`);
     syncSaveButton();
     setStatus(d.isNew ? 'New, not saved yet' : 'Up to date');
@@ -642,20 +691,28 @@
   const liveUrl = (path) => LIVE + (isPost(path) ? path.replace(/index\.qmd$/, '') : path.replace(/\.qmd$/, ''));
   const setStatus = (text, cls = '') => { const el = $('[data-status]'); if (el) { el.textContent = text; el.className = 'am-w-status ' + cls; } };
   const isFuture = (iso) => !!iso && iso > today();
+  // Where a page stands on GitHub (not counting unsent edits): new, draft, scheduled or live.
+  function stateOf(d) {
+    if (d.isNew || !d.original) return 'new';
+    const fm = d.original.split('\n---')[0];
+    return !/^draft: true$/m.test(fm) ? 'live' : /^scheduled: true$/m.test(fm) ? 'scheduled' : 'draft';
+  }
+  // Two buttons: the main one puts it on the site (or schedules it, for a future date);
+  // the other saves it as a draft. A live page only has "Update"; taking it down is in ⋯.
   function syncSaveButton() {
-    const visible = $('[data-field=visible]').checked;
-    const date = $('[data-field=date]').value;
-    const btn = $('[data-act=save]');
-    const fm = doc.original ? doc.original.split('\n---')[0] : '';
-    const wasVisible = !doc.isNew && !/^draft: true$/m.test(fm);
-    const wasScheduled = !doc.isNew && /^scheduled: true$/m.test(fm);
-    btn.textContent = !visible ? (wasVisible ? 'Hide from site' : 'Save draft')
-      : isFuture(date) ? (wasScheduled ? 'Update' : `Schedule for ${fmtDate(date)}`)
-      : doc.isNew || !wasVisible ? 'Publish' : 'Update';
+    const state = stateOf(doc), date = $('[data-field=date]').value;
+    const scheduledFor = state === 'scheduled' && (doc.original.match(/^date: ['"]?([\d-]+)/m) || [])[1];
+    $('[data-act=publish]').textContent = state === 'live' ? 'Update'
+      : isFuture(date) ? (scheduledFor === date ? 'Update' : `Schedule for ${fmtDate(date)}`)
+      : state === 'scheduled' ? 'Publish now' : 'Publish';
+    const draft = $('[data-act=draft]');
+    draft.hidden = state === 'live';
+    draft.textContent = state === 'scheduled' ? 'Unschedule' : state === 'draft' ? 'Save draft' : 'Save as draft';
   }
 
-  // Read the form back into doc.meta / doc.body.
-  function collect() {
+  // Read the form back into doc.meta / doc.body. `target` ('live' or 'draft') is
+  // where a save is sending it; without one the page keeps its current state.
+  function collect(target) {
     const d = doc, m = { ...d.meta };
     const val = (f) => $(`[data-field=${f}]`)?.value.trim();
     m.title = val('title') || undefined;
@@ -670,12 +727,14 @@
     }
     m.date = val('date') || today();
     m.categories = $$('.am-w-cats .am-chip.active').map((b) => b.dataset.cat);
-    // A future date with "visible" on is scheduled: kept as a draft until the daily
+    // Publishing with a future date schedules it: kept as a draft until the daily
     // rebuild (scripts/schedule.mjs) sees the date arrive and publishes it.
-    delete m.scheduled;
-    if (!$('[data-field=visible]').checked) m.draft = true;
-    else if (isFuture(m.date)) { m.draft = true; m.scheduled = true; }
-    else delete m.draft;
+    if (target) {
+      delete m.scheduled;
+      if (target === 'draft') m.draft = true;
+      else if (isFuture(m.date)) { m.draft = true; m.scheduled = true; }
+      else delete m.draft;
+    }
     const rev = $('[data-field=revised]');
     if (rev) { if (rev.checked) m['date-modified'] = today(); else if (m['date-modified'] === today()) delete m['date-modified']; }
     d.meta = m;
@@ -818,18 +877,67 @@
     }
   }
 
+  // ---- LaTeX: pasted LaTeX becomes the site's markdown (assets/latex.js). The original
+  // goes in first and is then replaced, so Ctrl+Z brings back exactly what was pasted.
+  function pasteLatex(tex) {
+    const ta = $('[data-field=body]');
+    const { meta, body } = AMLatex.convert(tex);
+    const s = ta.selectionStart;
+    ta.focus();
+    const typed = document.execCommand('insertText', false, tex);
+    if (typed) { ta.setSelectionRange(s, s + tex.length); document.execCommand('insertText', false, body); }
+    else ta.setRangeText(body, s, ta.selectionEnd, 'end');
+    fillFrom(meta);
+    changed();
+    setTimeout(() => setStatus('Converted from LaTeX. Ctrl+Z puts it back as you pasted it.', 'am-w-status-ok'), 900);
+  }
+  // A title or abstract found in LaTeX fills empty fields.
+  function fillFrom(meta) {
+    for (const [field, value] of [['title', meta.title], ['description', meta.description]]) {
+      const el = $(`[data-field=${field}]`);
+      if (!el || !value || el.value.trim()) continue;
+      el.value = value;
+      if (field === 'title' && doc.isNew && !doc.slugTouched) { const s = $('[data-field=slug]'); if (s) s.value = slugify(value); }
+    }
+  }
+  // A .tex, .md or .qmd file, read into { meta, body }.
+  async function readTextFile(file) {
+    const text = (await file.text()).replace(/\r\n/g, '\n');
+    if (/\.tex$/i.test(file.name) || (!/\.(q?md|markdown|txt)$/i.test(file.name) && AMLatex.looksLike(text))) return AMLatex.convert(text);
+    const parsed = splitDoc(text);
+    return { meta: parsed.meta, body: parsed.body };
+  }
+  const isTextFile = (f) => /\.(tex|q?md|markdown|txt)$/i.test(f.name);
+  // From the home page: a file becomes a new post, opened in the editor (nothing is sent yet).
+  async function importFile(file) {
+    if (!isTextFile(file)) return alert('That isn’t a file the editor can open. Try a .tex, .md or .qmd file.');
+    let got;
+    try { got = await readTextFile(file); } catch (e) { return alert(`Couldn’t read ${file.name}: ${e.message}`); }
+    const title = got.meta.title || file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+    const meta = { ...got.meta, title, date: today(), categories: [].concat(got.meta.categories || []), draft: true };
+    delete meta.scheduled;
+    const id = 'new-' + Date.now().toString(36);
+    local.set(KEY.draft + id, JSON.stringify({ kind: 'post', path: '', meta, body: got.body, slug: slugify(title), savedAt: new Date().toISOString() }));
+    location.hash = '#draft=' + encodeURIComponent(id);
+  }
+
   // ---- save to GitHub
   let saving = false;
-  async function save() {
+  async function save(target) {
     if (saving) return;
-    const d = collect();
+    // Ctrl+S keeps it where it is: live pages stay live, drafts stay drafts.
+    target ||= ['live', 'scheduled'].includes(stateOf(doc)) ? 'live' : 'draft';
+    const d = collect(target);
     const post = d.kind === 'post';
     if (d.kind !== 'note' && !d.meta.title) { setStatus(`Give the ${d.kind} a title first`, 'am-w-status-bad'); $('[data-field=title]').focus(); return; }
     if (!d.body.trim()) { setStatus('There’s nothing to save yet', 'am-w-status-bad'); return; }
+    if (!d.isNew && joinDoc(d.meta, d.body) === d.original && ![...d.images.values()].some((i) => i.b64)) {
+      setStatus('Up to date: nothing has changed', 'am-w-status-ok');
+      return;
+    }
     saving = true;
     clearTimeout(saveTimer);
-    const btn = $('[data-act=save]');
-    btn.disabled = true;
+    $$('[data-act=publish], [data-act=draft]').forEach((b) => { b.disabled = true; });
     setStatus('Saving to GitHub…');
     try {
       await loadEntries(true);
@@ -873,8 +981,7 @@
       setStatus(explain(e), 'am-w-status-bad');
     } finally {
       saving = false;
-      const b = $('[data-act=save]');
-      if (b) b.disabled = false;
+      $$('[data-act=publish], [data-act=draft]').forEach((b) => { b.disabled = false; });
     }
   }
 
@@ -989,7 +1096,13 @@
       if (confirm('Forget the saved key on this device? You’ll need to paste a key again to log in here.')) { local.del(KEY.auth); logout(); }
     }
     if (act === 'logout') logout();
-    if (act === 'save') save();
+    if (act === 'import') $('[data-import]').click();
+    if (act === 'publish') save('live');
+    if (act === 'draft') save('draft');
+    if (act === 'unpublish') {
+      t.closest('details').open = false;
+      if (confirm('Take this off the site? It stays here as a draft, and you can publish it again any time.')) save('draft');
+    }
     if (act === 'delete') { t.closest('details').open = false; remove(); }
     if (act === 'history') { t.closest('details').open = false; showHistory(); }
     if (act === 'close-history') $('[data-history]').hidden = true;
@@ -1014,7 +1127,7 @@
       if (s) s.value = slugify(e.target.value);
     }
     if (f === 'slug') doc.slugTouched = true;
-    if (f === 'visible' || f === 'date') syncSaveButton();
+    if (f === 'date') syncSaveButton();
     changed();
   });
   host.addEventListener('change', (e) => {
@@ -1022,7 +1135,8 @@
     if (t.dataset.md === 'env' && t.value) { env(t.value); t.value = ''; }
     if (t.dataset.md === 'figure' && t.value) { const [text, sel] = FIGURES[t.value]; insertBlock(text, sel); t.value = ''; }
     if (t.dataset.file !== undefined && t.files?.length) { addImages([...t.files]); t.value = ''; }
-    if (t.dataset.field === 'visible' || t.dataset.field === 'revised') { syncSaveButton(); changed(); }
+    if (t.dataset.import !== undefined && t.files?.length) { importFile(t.files[0]); t.value = ''; }
+    if (t.dataset.field === 'revised') changed();
   });
   host.addEventListener('keydown', (e) => {
     const t = e.target;
@@ -1051,7 +1165,9 @@
   host.addEventListener('paste', (e) => {
     if (e.target.dataset?.field !== 'body') return;
     const imgs = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
-    if (imgs.length) { e.preventDefault(); addImages(imgs); }
+    if (imgs.length) { e.preventDefault(); addImages(imgs); return; }
+    const text = e.clipboardData?.getData('text/plain');
+    if (text && window.AMLatex?.looksLike(text)) { e.preventDefault(); pasteLatex(text); }
   });
   let dragDepth = 0;
   host.addEventListener('dragenter', (e) => {
@@ -1061,13 +1177,24 @@
     if (zone) zone.hidden = false;
   });
   host.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; const z = $('.am-w-drop'); if (z) z.hidden = true; } });
-  host.addEventListener('dragover', (e) => { if (doc && e.dataTransfer?.types.includes('Files')) e.preventDefault(); });
-  host.addEventListener('drop', (e) => {
-    if (!doc || !e.dataTransfer?.files.length) return;
+  host.addEventListener('dragover', (e) => { if ((doc || $('[data-import]')) && e.dataTransfer?.types.includes('Files')) e.preventDefault(); });
+  host.addEventListener('drop', async (e) => {
+    const list = [...(e.dataTransfer?.files || [])];
+    if (!list.length || !(doc || $('[data-import]'))) return;
     e.preventDefault();
     dragDepth = 0;
-    $('.am-w-drop').hidden = true;
-    addImages([...e.dataTransfer.files]);
+    const zone = $('.am-w-drop');
+    if (zone) zone.hidden = true;
+    if (!doc) return importFile(list[0]);              // on the home page: a new post from the file
+    // In the editor: pictures are added, and a text file's contents go in at the cursor.
+    for (const f of list.filter(isTextFile)) {
+      try {
+        const got = await readTextFile(f);
+        insert(got.body.replace(/\s+$/, '') + '\n');
+        fillFrom(got.meta);
+      } catch (err) { setStatus(`Couldn’t read ${f.name}: ${err.message}`, 'am-w-status-bad'); }
+    }
+    addImages(list.filter((f) => !isTextFile(f)));
   });
   // Keep the preview roughly level with the text being written.
   host.addEventListener('scroll', (e) => {
@@ -1086,6 +1213,11 @@
       return show('<div class="am-w-center"><p class="am-w-error">The editor couldn’t load. It needs a modern browser and an https:// address.</p></div>');
     }
     if (!token) token = tab.get(KEY.session);
+    if (!token && local.get(KEY.remember)) {
+      viewLoading('Logging in…');
+      token = await recall();
+      if (token) tab.set(KEY.session, token);
+    }
     if (!token) return viewGate();
     if (!me) {
       try { me = await gh('/user'); } catch (e) { return viewGate(explain(e)); }
