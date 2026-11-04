@@ -32,6 +32,7 @@ local function page_kind()
   local f = (quarto.doc.input_file or ""):gsub("\\", "/")
   if f:match("/posts/[^/_][^/]*/index%.qmd$") then return "post" end
   if f:match("/lectures/[^/_][^/]*/index%.qmd$") then return "lecture" end
+  if f:match("/results/[^/_][^/]*/index%.qmd$") then return "result" end
   if f:match("/notes/[^/_][^/]*%.qmd$") then return "note" end
   if f:match("/problems/[^/_][^/]*%.qmd$") then return "problem" end
   return nil
@@ -51,6 +52,7 @@ function Pandoc(doc)
   -- Source path relative to the project, for the "Edit this page" link.
   local f = (quarto.doc.input_file or ""):gsub("\\", "/")
   local src = f:match("/(posts/[^/]+/index%.qmd)$") or f:match("/(lectures/[^/]+/index%.qmd)$")
+    or f:match("/(results/[^/]+/index%.qmd)$")
     or f:match("/(notes/[^/]+%.qmd)$") or f:match("/(problems/[^/]+%.qmd)$")
   local data = { 'data-kind="' .. kind .. '"' }
   if src then table.insert(data, 'data-src="' .. attr(src) .. '"') end
@@ -62,5 +64,24 @@ function Pandoc(doc)
   if truthy(meta["fold-proofs"]) then table.insert(data, 'data-fold-proofs="true"') end
   doc.blocks:insert(1, pandoc.RawBlock("html",
     '<div id="am-page" hidden ' .. table.concat(data, " ") .. '></div>'))
+
+  -- Research results: status, venue and links (paper, arXiv, DOI, code) in a box under the title.
+  if kind == "result" then
+    local parts = {}
+    local status = str(meta.status)
+    if status then
+      table.insert(parts, '<span class="am-res-status am-res-' .. attr(status:lower():gsub("%s+", "-")) .. '">' .. attr(status) .. '</span>')
+    end
+    if str(meta.venue) then table.insert(parts, '<span class="am-res-venue">' .. attr(str(meta.venue)) .. '</span>') end
+    local links = {}
+    if str(meta.pdf) then table.insert(links, '<a href="' .. attr(str(meta.pdf)) .. '">Paper (PDF)</a>') end
+    if str(meta.arxiv) then table.insert(links, '<a href="https://arxiv.org/abs/' .. attr(str(meta.arxiv)) .. '">arXiv:' .. attr(str(meta.arxiv)) .. '</a>') end
+    if str(meta.doi) then table.insert(links, '<a href="https://doi.org/' .. attr(str(meta.doi)) .. '">DOI</a>') end
+    if str(meta.code) then table.insert(links, '<a href="' .. attr(str(meta.code)) .. '">Code</a>') end
+    if #links > 0 then table.insert(parts, '<span class="am-res-links">' .. table.concat(links) .. '</span>') end
+    if #parts > 0 then
+      doc.blocks:insert(2, pandoc.RawBlock("html", '<div class="am-res-box">' .. table.concat(parts) .. '</div>'))
+    end
+  end
   return doc
 end

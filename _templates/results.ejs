@@ -1,0 +1,50 @@
+<%
+// The Results page: research results grouped by where they stand, newest first in each group.
+const ME = 'Antony';
+const GROUPS = [
+  ['Published', ['published', 'accepted']],
+  ['Preprints', ['preprint', 'submitted']],
+  ['In progress', ['in progress', 'in-progress', 'ongoing']],
+];
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const names = (a) => (a == null ? [] : Array.isArray(a) ? a : [a])
+  .map((x) => (typeof x === 'string' ? x : (x && (x.name?.literal || x.name || x.text)) || ''))
+  .flatMap((x) => String(x).split(/\s*,\s*|\s+and\s+/)).map((x) => x.trim()).filter(Boolean);
+const year = (d) => (String(d || '').match(/^\d{4}/) || [''])[0];
+// item.path is the source file here (e.g. ./results\slug\index.qmd); files sit in its folder.
+const dir = (p) => String(p).replace(/\\/g, '/').replace(/^\.?\//, '').replace(/[^/]*$/, '');
+const rank = (s) => { const k = String(s || '').toLowerCase(); const i = GROUPS.findIndex(([, ks]) => ks.includes(k)); return i < 0 ? GROUPS.length : i; };
+const groups = GROUPS.map(([label]) => ({ label, items: [] })).concat([{ label: 'Results', items: [] }]);
+for (const item of items) groups[rank(item.status)].items.push(item);
+for (const g of groups) g.items.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+const shown = groups.filter((g) => g.items.length);
+const row = (item) => {
+  const co = names(item.author).filter((n) => n !== ME);
+  const meta = [co.length ? `with ${esc(co.join(', ').replace(/, ([^,]*)$/, ' and $1'))}` : '', item.venue ? `<em>${esc(item.venue)}</em>` : '', year(item.date)].filter(Boolean).join(' · ');
+  const links = [
+    item.pdf ? `<a href="${esc(dir(item.path) + item.pdf)}">PDF</a>` : '',
+    item.arxiv ? `<a href="https://arxiv.org/abs/${esc(item.arxiv)}">arXiv</a>` : '',
+    item.doi ? `<a href="https://doi.org/${esc(item.doi)}">DOI</a>` : '',
+    item.code ? `<a href="${esc(item.code)}">Code</a>` : '',
+  ].filter(Boolean).join('');
+  return `<li class="am-res">
+    <div class="am-res-main">
+      <a class="am-res-title" href="${item.path}">${item.title}</a>
+      ${meta ? `<p class="am-res-meta">${meta}</p>` : ''}
+      ${item.description ? `<p class="am-res-desc">${item.description}</p>` : ''}
+    </div>
+    <div class="am-res-side">${item.status ? `<span class="am-res-status am-res-${esc(String(item.status).toLowerCase().replace(/\s+/g, '-'))}">${esc(item.status)}</span>` : ''}${links ? `<span class="am-res-links">${links}</span>` : ''}</div>
+  </li>`;
+};
+%>
+```{=html}
+<div class="am-research">
+<% for (const g of shown) { %>
+<section class="am-res-group">
+  <h2 class="am-res-head"><%- shown.length > 1 || g.label !== 'Results' ? g.label : 'All results' %></h2>
+  <ol class="am-res-list"><% for (const item of g.items) { %><%= row(item) %><% } %></ol>
+</section>
+<% } %>
+<% if (!items.length) { %><p class="am-empty">No results posted yet.</p><% } %>
+</div>
+```

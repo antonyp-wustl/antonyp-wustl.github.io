@@ -1,0 +1,17 @@
+---
+title: "Results"
+subtitle: "My research: what I've proved, with whom, and where it stands."
+page-layout: article
+toc: false
+listing:
+  id: research
+  contents: results
+  sort: "date desc"
+  template: _templates/results.ejs
+  date-format: iso
+  fields: [title, date, description, author, path]
+  feed:
+    title: "antony-mathematics · Results"
+    description: "Research results"
+    type: full
+---

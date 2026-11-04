@@ -1,11 +1,11 @@
 ---
 title: "Theorems"
-subtitle: "Every definition, theorem, lemma and conjecture from every post and lecture, in one searchable place. It fills itself in as I write."
+subtitle: "Every definition, theorem, lemma and conjecture from every post, lecture and research result, in one searchable place. It fills itself in as I write."
 page-layout: article
 toc: false
 listing:
   id: results
-  contents: [posts, lectures]
+  contents: [posts, lectures, results]
   sort: "date desc"
   template: _templates/post-index.ejs
   template-params:

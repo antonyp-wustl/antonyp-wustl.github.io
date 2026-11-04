@@ -7,8 +7,8 @@ import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, posix } from 'node:path';
 
 const SITE = '_site';
-const KINDS = { posts: 'Post', lectures: 'Lecture', notes: 'Note', problems: 'Problem' };
-const FOLDERS = new Set(['posts', 'lectures']);       // one folder per page, with index.html inside
+const KINDS = { posts: 'Post', lectures: 'Lecture', results: 'Result', notes: 'Note', problems: 'Problem' };
+const FOLDERS = new Set(['posts', 'lectures', 'results']);       // one folder per page, with index.html inside
 
 // Every page that can link or be linked: /posts/x/index.html, /lectures/x/index.html, /notes/y.html, /problems/z.html
 const pages = [];

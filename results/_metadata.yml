@@ -1,0 +1,52 @@
+# Options here apply to every research result in this folder (results/<slug>/index.qmd).
+# A result is a page about one piece of research: what it proves, with whom, and where
+# it stands. Besides title, date and the body, the front matter can have:
+#   abstract: "..."                 # shown under the title
+#   author: [Antony, Jane Doe]      # only needed when there are coauthors
+#   status: Preprint                # In progress, Preprint, Submitted, Accepted or Published
+#   venue: "Journal of Number Theory"
+#   arxiv: "2611.01234"
+#   doi: "10.1016/j.jnt.2026.01.001"
+#   pdf: paper.pdf                  # a file in the result's folder
+#   code: https://github.com/...
+# theme/am.lua turns status, venue and the links into the box under the title.
+
+freeze: auto
+
+author: "Antony"
+title-block-banner: false
+title-block-style: default
+toc: true
+toc-depth: 3
+toc-location: left
+toc-title: "On this page"
+reference-location: margin
+citation-location: margin
+fig-cap-location: margin
+lightbox: auto
+code-tools: false
+
+# Share image, drawn by scripts/cards.mjs (or set `image:` in a result).
+image: card.png
+
+# The paper, slides and data next to a result are published with it.
+resources:
+  - "*.pdf"
+  - "*.zip"
+  - "*.tex"
+  - "*.txt"
+  - "*.csv"
+  - "*.py"
+  - "*.ipynb"
+  - "*.bib"
+
+# Hidden index used for previous/next links (theme/site.html).
+listing:
+  id: am-post-index
+  contents:
+    - "../*/index.qmd"
+    - "!../_*/index.qmd"
+  sort: "date desc"
+  template: ../../_templates/post-index.ejs
+  date-format: iso
+  fields: [title, date, categories, path]

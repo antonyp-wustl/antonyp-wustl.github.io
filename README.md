@@ -6,9 +6,10 @@ My mathematics site, built with [Quarto](https://quarto.org). Posts are plain ma
 
 Go to **[/write](https://antonyp.com/write)** and write. The editor has a live preview with the site's own theorem boxes, maths and macros. Pressing **Publish** commits the file to this repo, and the site is updated about a minute and a half later. A note at the bottom right follows the rebuild and links to the page once it's live.
 
-- **New post / New lecture / New note / New problem** start from blank. Two buttons: **Publish** puts it on the site, **Save draft** keeps it hidden. A live page has **Update**; to hide it again, use **Take off the site** in the ⋯ menu.
+- **New post / New lecture / New result / New note / New problem** start from blank. Two buttons: **Publish** puts it on the site, **Save draft** keeps it hidden. A live page has **Update**; to hide it again, use **Take off the site** in the ⋯ menu.
 - **Already written in LaTeX?** Paste it in and it's converted: `\section`, theorem/lemma/definition environments with `\label` and `\ref`, `proof`, `equation`/`align`, `itemize`/`enumerate`, `\emph`, `\footnote`, `\href` and the rest. Ctrl+Z gives you the original back. **Import a file…** (or dropping a `.tex`, `.md` or `.qmd` file on the page) turns a whole file into a new post, title and abstract included. Pictures from the `.tex` need adding again.
 - **Lectures**: give each one a **Course** and a **Lecture no.** A new lecture picks up the course of your latest one and numbers itself next; clear the course for a one-off lesson. **Attach file** (posts and lectures) adds slides, handouts or any other file: it's saved next to the lecture and linked where your cursor is.
+- **Results**: fill in the abstract, **Status** (In progress, Preprint, Submitted, Accepted, Published), journal, coauthors, arXiv number, DOI and code link (pasting a full arXiv or DOI link is fine), and **Attach paper (PDF)**. The body is for the main theorem and what it means; pasting your paper's LaTeX works.
 - **The About page** is under **Pages** (or use **Edit this page** on the About page itself). Edit the text, press **Change picture…** for a new profile photo (saved in `assets/`), describe it for screen readers, and press **Update**.
 - **Scheduling**: pick a future date and the button turns into **Schedule for …**; the post goes live by itself that morning.
 - **Pictures**: drop them onto the text, paste them, or use **Picture**. Big photos are shrunk to 1600 px wide before uploading. They're saved next to the post.
@@ -76,6 +77,23 @@ lecture: 3                           # its number in the course
 ```
 
 Each lecture page shows the course's full list of lectures, links to the previous and next lecture, a **Download PDF (LaTeX)** link with "Course · Lecture n" under the title, and a share image. Its theorems join the Theorems page. Handouts and slides (`.pdf`, `.zip`, `.tex`, …) put in the lecture's folder are published with it. Leave out `course:` for a one-off lesson. There's a feed at `/lectures.xml`.
+
+## Results
+
+The **Results** tab is for research: each result is a folder, `results/<slug>/index.qmd`, and the tab lists them under *Published*, *Preprints* and *In progress* (`results.qmd`, drawn by `_templates/results.ejs`), with coauthors, journal and links. The front matter can have:
+
+```yaml
+abstract: "We show that ..."               # shown under the title
+author: [Antony, Jane Doe]                 # only when there are coauthors
+status: Preprint                           # In progress, Preprint, Submitted, Accepted or Published
+venue: "Journal of Number Theory"
+arxiv: "2611.01234"
+doi: "10.1016/j.jnt.2026.01.001"
+pdf: paper.pdf                             # a file in the result's folder
+code: https://github.com/...
+```
+
+`theme/am.lua` puts the status, journal and the paper/arXiv/DOI/code links in a box under the title. The main theorem goes in the body as usual, so it also joins the Theorems page. Each result gets a share image and a feed entry (`/results.xml`).
 
 ## Writing a post
 
@@ -216,10 +234,11 @@ Every published post gets a **Download PDF (LaTeX)** link, typeset properly with
 |:--|:--|
 | `posts/` | One folder per post |
 | `lectures/` | One folder per lecture |
+| `results/` | One folder per research result |
 | `notes/` | One file per note |
 | `problems/` | One file per problem |
 | `index.qmd` | Home page (prime-spiral hero, latest posts, topics) |
-| `archive.qmd`, `notebook.qmd`, `problems.qmd`, `lectures.qmd`, `topics.qmd`, `theorems.qmd`, `about.qmd` | The other pages |
+| `archive.qmd`, `notebook.qmd`, `problems.qmd`, `lectures.qmd`, `results.qmd`, `topics.qmd`, `theorems.qmd`, `about.qmd` | The other pages |
 | `write.qmd`, `assets/write.js`, `assets/latex.js` | The Write page, and its LaTeX converter |
 | `worker/` | The "Log in with GitHub" helper (a Cloudflare Worker, not part of the site) |
 | `publish`, `new-post`, `new-note` | One-command publishing and starting posts/notes (`.ps1` scripts; the `.cmd` twins run them from any terminal) |

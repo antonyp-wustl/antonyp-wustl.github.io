@@ -31,6 +31,7 @@ website:
     logo-alt: "antony-mathematics home"
     title: "antony-mathematics"
     pinned: false
+    collapse-below: xl     # nine tabs only fit side by side from 1200 px; narrower screens get the ☰ menu
     left:
       - text: Writing
         href: archive.qmd
@@ -40,6 +41,8 @@ website:
         href: problems.qmd
       - text: Lectures
         href: lectures.qmd
+      - text: Results
+        href: results.qmd
       - text: Topics
         href: topics.qmd
       - text: Theorems

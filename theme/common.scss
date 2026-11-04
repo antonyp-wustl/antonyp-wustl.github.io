@@ -596,6 +596,41 @@ table { font-variant-numeric: tabular-nums; }
 // ---------------------------------------------------------------- archive
 .am-archive { border-top: 1px solid var(--am-rule); }
 
+// ---- Results page (_templates/results.ejs) and the box under a result's title (theme/am.lua)
+.am-research { display: flex; flex-direction: column; gap: 2.25rem; margin-top: 1rem; }
+.am-res-head { margin: 0 0 0.25rem; font-size: 1.45rem; letter-spacing: -0.02em; padding-bottom: 0.6rem; border-bottom: 2px solid var(--am-accent); }
+.am-res-list { list-style: none; margin: 0; padding: 0; }
+.am-res { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem 1.25rem; padding: 1.15rem 0.25rem; border-bottom: 1px solid var(--am-rule); }
+.am-res-main { min-width: 0; }
+.am-res-title { font-size: 1.18rem; font-weight: 700; letter-spacing: -0.01em; color: var(--am-ink) !important; text-decoration: none !important; }
+.am-res-title:hover { color: var(--am-accent-ink) !important; }
+.am-res-meta { margin: 0.25rem 0 0; font-size: 0.92rem; color: var(--am-muted); }
+.am-res-desc { margin: 0.35rem 0 0; font-size: 0.98rem; line-height: 1.5; color: var(--am-muted); }
+.am-res-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+.am-res-status {
+  display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-family: $sans; font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.02em; white-space: nowrap; border: 1px solid var(--am-rule-strong); color: var(--am-muted);
+}
+.am-res-published, .am-res-accepted { border-color: #3fa66b; color: #3fa66b; }
+.am-res-preprint, .am-res-submitted { border-color: var(--am-accent); color: var(--am-accent-ink); }
+.am-res-links { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
+.am-res-links a {
+  padding: 0.15rem 0.55rem; border-radius: 6px; border: 1px solid var(--am-rule-strong); font-family: $sans; font-size: 0.8rem; font-weight: 600;
+  color: var(--am-ink) !important; text-decoration: none !important;
+}
+.am-res-links a:hover { border-color: var(--am-accent); color: var(--am-accent-ink) !important; }
+.am-res-box {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 0.9rem; margin: 0 0 1.75rem; padding: 0.85rem 1rem;
+  border: 1px solid var(--am-rule); border-radius: 12px; background: var(--am-surface);
+}
+.am-res-box .am-res-links { justify-content: flex-start; margin-left: auto; }
+.am-res-venue { font-style: italic; color: var(--am-ink); }
+@media (max-width: 576px) {
+  .am-res { grid-template-columns: 1fr; }
+  .am-res-side { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .am-res-box .am-res-links { margin-left: 0; }
+}
+
 // ---- Lectures page (_templates/lectures.ejs): one block per course
 .am-lectures { display: flex; flex-direction: column; gap: 2.5rem; margin-top: 1rem; }
 .am-course-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-bottom: 0.6rem; border-bottom: 2px solid var(--am-accent); }
@@ -1117,6 +1152,9 @@ body:has(#am-write) #title-block-header { display: none; }
 .am-w-github svg { flex: none; }
 .am-w-profile { align-items: center !important; }
 .am-w-num input { width: 6.5rem; }
+.am-w-paper { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; padding-bottom: 0.1rem; }
+.am-w-pv-abstract { margin: 0.75rem 0 1rem; font-size: 0.95rem; }
+.am-w-pv-abstract strong { display: block; font-family: $sans; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--am-muted); }
 .am-w-avatar { width: 3.5rem; height: 3.5rem; border-radius: 50%; object-fit: cover; border: 1px solid var(--am-rule-strong); }
 .am-w-pv-avatar { display: block; width: 9rem; height: 9rem; border-radius: 50%; object-fit: cover; margin: 0 auto 1rem; }
 .am-w-more { position: relative; }

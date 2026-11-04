@@ -11,11 +11,11 @@ import { join } from 'node:path';
 
 const today = process.env.TODAY || new Date().toISOString().slice(0, 10);   // UTC date on the runner
 const files = [];
-for (const dir of ['posts', 'lectures', 'notes', 'problems']) {
+for (const dir of ['posts', 'lectures', 'results', 'notes', 'problems']) {
   if (!existsSync(dir)) continue;
   for (const name of readdirSync(dir)) {
     if (name.startsWith('_')) continue;
-    const f = ['posts', 'lectures'].includes(dir) ? join(dir, name, 'index.qmd') : join(dir, name);
+    const f = ['posts', 'lectures', 'results'].includes(dir) ? join(dir, name, 'index.qmd') : join(dir, name);
     if (f.endsWith('.qmd') && existsSync(f)) files.push(f);
   }
 }

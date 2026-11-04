@@ -58,9 +58,11 @@ function readPost(file) {
   const categories = [...html.matchAll(/<div class="quarto-category">([^<]*)<\/div>/g)].map((m) => decode(m[1]));
   const pageData = (name) => decode((html.match(new RegExp(`<div id="am-page"[^>]*data-${name}="([^"]*)"`)) || [])[1] || '');
   const series = pageData('series'), course = pageData('course'), lecture = pageData('lecture');
+  const status = decode((html.match(/<span class="am-res-status[^"]*">([^<]*)</) || [])[1] || '');
+  const venue = decode((html.match(/<span class="am-res-venue">([^<]*)</) || [])[1] || '');
   const iso = meta('name', 'dcterms.date');
   const date = iso ? new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-  return { title, categories: [...new Set(categories)].slice(0, 3), series, course, lecture, date };
+  return { title, categories: [...new Set(categories)].slice(0, 3), series, course, lecture, status, venue, date };
 }
 
 // ------------------------------------------------------------ the card
@@ -148,7 +150,7 @@ if (process.argv.includes('--home')) {
 } else {
   if (!fs.existsSync(path.join(site, 'posts'))) { console.error('cards: run `quarto render` first.'); process.exit(1); }
   let n = 0;
-  for (const section of ['posts', 'lectures']) {
+  for (const section of ['posts', 'lectures', 'results']) {
     const dir = path.join(site, section);
     if (!fs.existsSync(dir)) continue;
     for (const slug of fs.readdirSync(dir)) {
@@ -156,11 +158,12 @@ if (process.argv.includes('--home')) {
       if (!fs.existsSync(file)) continue;
       const post = readPost(file);
       if (!post.title) continue;   // drafts render as an empty placeholder page
-      const chips = post.course ? [post.lecture ? `Lecture ${post.lecture}` : 'Lecture', post.course]
+      const chips = section === 'results' ? [post.status || 'Research', post.venue].filter(Boolean)
+        : post.course ? [post.lecture ? `Lecture ${post.lecture}` : 'Lecture', post.course]
         : post.series ? [`Series: ${post.series}`, ...post.categories].slice(0, 3) : post.categories;
       shoot(cardHtml({
         title: post.title,
-        kicker: section === 'lectures' ? 'antony-mathematics · lectures' : 'antony-mathematics',
+        kicker: section === 'posts' ? 'antony-mathematics' : `antony-mathematics · ${section}`,
         chips,
         footer: [post.date, 'antonyp.com'].filter(Boolean).join('  ·  '),
       }), path.join(dir, slug, 'card.png'));
