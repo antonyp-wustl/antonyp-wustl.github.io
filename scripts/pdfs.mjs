@@ -54,8 +54,11 @@ const ensureTeX = () => {
 const recipe = ['theme/katex-macros.html', 'theme/shortcodes.lua', 'scripts/pdfs.mjs'].map((f) => readFileSync(f)).join('\n');
 let built = 0, reused = 0, failed = 0;
 
-for (const slug of readdirSync('posts')) {
-  const dir = join('posts', slug), src = join(dir, 'index.qmd');
+// Posts and lectures: one folder each. Cache files are named <section>-<slug>-<hash>.pdf.
+const SECTIONS = ['posts', 'lectures'];
+const pages = SECTIONS.filter((s) => existsSync(s)).flatMap((section) => readdirSync(section).map((slug) => ({ section, slug })));
+for (const { section, slug } of pages) {
+  const dir = join(section, slug), src = join(dir, 'index.qmd');
   if (slug.startsWith('_') || !existsSync(src)) continue;
   const text = readFileSync(src, 'utf8');
   if (/^draft:\s*true\b/m.test(text.split(/\r?\n---/)[0])) continue;
@@ -63,12 +66,12 @@ for (const slug of readdirSync('posts')) {
 
   const hash = createHash('sha256').update(recipe);
   for (const f of listFiles(dir)) hash.update(f).update(readFileSync(join(dir, f)));
-  const cached = join(CACHE, `${slug}-${hash.digest('hex').slice(0, 16)}.pdf`);
+  const cached = join(CACHE, `${section}-${slug}-${hash.digest('hex').slice(0, 16)}.pdf`);
 
   if (existsSync(cached)) reused++;
   else {
     ensureTeX();
-    const work = join(tmpdir(), 'am-pdf', slug);
+    const work = join(tmpdir(), 'am-pdf', section, slug);
     rmSync(work, { recursive: true, force: true });
     mkdirSync(work, { recursive: true });
     for (const f of listFiles(dir)) {
@@ -76,10 +79,17 @@ for (const slug of readdirSync('posts')) {
       copyFileSync(join(dir, f), join(work, f));
     }
     // Interactive cells have nothing to show on paper.
-    const paper = text.replace(/(```\{ojs\}[\s\S]*?```\s*)+/g, '*[Interactive figure: open the web version of this page to use it.]*\n\n');
+    let paper = text.replace(/(```\{ojs\}[\s\S]*?```\s*)+/g, '*[Interactive figure: open the web version of this page to use it.]*\n\n');
+    // A lecture without a subtitle gets "Course · Lecture n" under its title.
+    const fm = paper.split(/\r?\n---/)[0];
+    const course = fm.match(/^course:\s*["']?(.*?)["']?\s*$/m)?.[1], lecture = fm.match(/^lecture:\s*["']?(\d+)/m)?.[1];
+    if (section === 'lectures' && (course || lecture) && !/^subtitle:/m.test(fm)) {
+      const sub = [course, lecture && `Lecture ${lecture}`].filter(Boolean).join(' · ').replace(/"/g, '\\"');
+      paper = paper.replace(/^---\r?\n/, `---\nsubtitle: "${sub}"\n`);
+    }
     writeFileSync(join(work, 'index.qmd'), paper);
     copyFileSync('theme/shortcodes.lua', join(work, 'shortcodes.lua'));
-    const url = `${siteUrl}/posts/${slug}/`;
+    const url = `${siteUrl}/${section}/${slug}/`;
     writeFileSync(join(work, 'header.tex'), [
       '\\usepackage{amssymb,amscd}',
       '\\makeatletter\\@ifpackageloaded{microtype}{\\microtypesetup{expansion=false}}{}',
@@ -113,7 +123,7 @@ for (const slug of readdirSync('posts')) {
     const out = join(work, 'index.pdf');
     if (r.status !== 0 || !existsSync(out)) {
       failed++;
-      console.log(`pdf: ${slug} failed\n${(r.stderr || r.stdout || '').split('\n').slice(-25).join('\n')}`);
+      console.log(`pdf: ${section}/${slug} failed\n${(r.stderr || r.stdout || '').split('\n').slice(-25).join('\n')}`);
       continue;
     }
     copyFileSync(out, cached);
@@ -126,11 +136,17 @@ for (const slug of readdirSync('posts')) {
   writeFileSync(page, html.replace('</head>', `<meta name="am-pdf" content="${slug}.pdf">\n</head>`));
 }
 
-// Drop cached PDFs of posts that changed or were deleted, keeping the cache small.
-const keep = new Set(readdirSync(join(SITE, 'posts')).map((s) => existsSync(join(SITE, 'posts', s, `${s}.pdf`)) && s).filter(Boolean));
+// Drop cached PDFs of pages that changed or were deleted, keeping the cache small.
+const live = new Map();          // "<section>-<slug>" -> the PDF now on the site
+for (const section of SECTIONS) {
+  if (!existsSync(join(SITE, section))) continue;
+  for (const s of readdirSync(join(SITE, section))) {
+    const pdf = join(SITE, section, s, `${s}.pdf`);
+    if (existsSync(pdf)) live.set(`${section}-${s}`, pdf);
+  }
+}
 for (const f of readdirSync(CACHE)) {
-  const slug = f.replace(/-[0-9a-f]{16}\.pdf$/, '');
-  const live = join(SITE, 'posts', slug, `${slug}.pdf`);
-  if (!keep.has(slug) || readFileSync(live).compare(readFileSync(join(CACHE, f))) !== 0) rmSync(join(CACHE, f));
+  const key = f.replace(/-[0-9a-f]{16}\.pdf$/, '');
+  if (!live.has(key) || readFileSync(live.get(key)).compare(readFileSync(join(CACHE, f))) !== 0) rmSync(join(CACHE, f));
 }
 console.log(`pdfs: ${built} built, ${reused} from cache, ${failed} failed`);

@@ -1,0 +1,43 @@
+# Options here apply to every lecture in this folder (lectures/<slug>/index.qmd).
+# A lecture is written like a post. Two extra front-matter fields group them:
+#   course: "Elementary number theory"   # lectures with the same course are listed together
+#   lecture: 3                           # its number within the course
+
+freeze: auto
+
+author: "Antony"
+title-block-banner: false
+title-block-style: default
+toc: true
+toc-depth: 3
+toc-location: left
+toc-title: "In this lecture"
+reference-location: margin
+citation-location: margin
+fig-cap-location: margin
+lightbox: auto
+code-tools: false
+
+# Share image, drawn by scripts/cards.mjs (or set `image:` in a lecture).
+image: card.png
+
+# Handouts, slides and other files next to a lecture are published with it.
+resources:
+  - "*.pdf"
+  - "*.zip"
+  - "*.tex"
+  - "*.txt"
+  - "*.csv"
+  - "*.py"
+  - "*.ipynb"
+
+# Hidden index used for the course box and previous/next links (theme/site.html).
+listing:
+  id: am-post-index
+  contents:
+    - "../*/index.qmd"
+    - "!../_*/index.qmd"
+  sort: "date desc"
+  template: ../../_templates/post-index.ejs
+  date-format: iso
+  fields: [title, date, categories, path]

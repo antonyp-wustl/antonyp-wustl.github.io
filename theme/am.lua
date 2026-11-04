@@ -26,10 +26,12 @@ local function long_date(iso)
   return tonumber(d) .. " " .. months[tonumber(m)] .. " " .. y
 end
 
--- Which kind of page is this? posts/<slug>/index.qmd, notes/<file>.qmd or problems/<file>.qmd
+-- Which kind of page is this? posts/<slug>/index.qmd, lectures/<slug>/index.qmd,
+-- notes/<file>.qmd or problems/<file>.qmd
 local function page_kind()
   local f = (quarto.doc.input_file or ""):gsub("\\", "/")
   if f:match("/posts/[^/_][^/]*/index%.qmd$") then return "post" end
+  if f:match("/lectures/[^/_][^/]*/index%.qmd$") then return "lecture" end
   if f:match("/notes/[^/_][^/]*%.qmd$") then return "note" end
   if f:match("/problems/[^/_][^/]*%.qmd$") then return "problem" end
   return nil
@@ -48,11 +50,13 @@ function Pandoc(doc)
 
   -- Source path relative to the project, for the "Edit this page" link.
   local f = (quarto.doc.input_file or ""):gsub("\\", "/")
-  local src = f:match("/(posts/[^/]+/index%.qmd)$") or f:match("/(notes/[^/]+%.qmd)$")
-    or f:match("/(problems/[^/]+%.qmd)$")
+  local src = f:match("/(posts/[^/]+/index%.qmd)$") or f:match("/(lectures/[^/]+/index%.qmd)$")
+    or f:match("/(notes/[^/]+%.qmd)$") or f:match("/(problems/[^/]+%.qmd)$")
   local data = { 'data-kind="' .. kind .. '"' }
   if src then table.insert(data, 'data-src="' .. attr(src) .. '"') end
   if str(meta.series) then table.insert(data, 'data-series="' .. attr(str(meta.series)) .. '"') end
+  if str(meta.course) then table.insert(data, 'data-course="' .. attr(str(meta.course)) .. '"') end
+  if str(meta.lecture) then table.insert(data, 'data-lecture="' .. attr(str(meta.lecture)) .. '"') end
   if str(meta.source) then table.insert(data, 'data-source="' .. attr(str(meta.source)) .. '"') end
   if str(meta.difficulty) then table.insert(data, 'data-difficulty="' .. attr(str(meta.difficulty)) .. '"') end
   if truthy(meta["fold-proofs"]) then table.insert(data, 'data-fold-proofs="true"') end

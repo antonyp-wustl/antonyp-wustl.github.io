@@ -7,6 +7,8 @@ const data = items.map((i) => ({
   date: i.date,
   categories: i.categories || [],
   series: i.series || null,
+  course: i.course || null,
+  lecture: i.lecture != null ? +i.lecture || null : null,
 }));
 %>
 ```{=html}

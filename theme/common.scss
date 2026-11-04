@@ -595,6 +595,30 @@ table { font-variant-numeric: tabular-nums; }
 
 // ---------------------------------------------------------------- archive
 .am-archive { border-top: 1px solid var(--am-rule); }
+
+// ---- Lectures page (_templates/lectures.ejs): one block per course
+.am-lectures { display: flex; flex-direction: column; gap: 2.5rem; margin-top: 1rem; }
+.am-course-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-bottom: 0.6rem; border-bottom: 2px solid var(--am-accent); }
+.am-course-head h2 { margin: 0; font-size: 1.45rem; letter-spacing: -0.02em; border: 0; padding: 0; }
+.am-course-head span { font-family: $mono; font-size: 0.8rem; color: var(--am-muted); white-space: nowrap; }
+.am-course-list { list-style: none; margin: 0; padding: 0; }
+.am-lec {
+  display: grid; grid-template-columns: 2.5rem 1fr auto; gap: 0.3rem 1rem; align-items: baseline;
+  padding: 1rem 0.25rem; border-bottom: 1px solid var(--am-rule);
+  color: var(--am-ink) !important; text-decoration: none !important; transition: background 0.15s;
+}
+.am-lec:hover { background: color-mix(in srgb, var(--am-surface) 60%, transparent); }
+.am-lec:hover .am-lec-title { color: var(--am-accent-ink); }
+.am-lec-num { font-family: $mono; font-size: 1.05rem; font-weight: 700; color: var(--am-accent-ink); text-align: right; }
+.am-course-loose .am-lec { grid-template-columns: 0 1fr auto; gap: 0.3rem 0.5rem; }
+.am-lec-main { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.am-lec-title { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; transition: color 0.15s; }
+.am-lec-desc { color: var(--am-muted); font-size: 0.98rem; line-height: 1.5; }
+.am-lec-date { font-family: $mono; font-size: 0.78rem; color: var(--am-muted); white-space: nowrap; }
+@media (max-width: 576px) {
+  .am-lec { grid-template-columns: 2rem 1fr; }
+  .am-lec-date { grid-column: 2; }
+}
 .am-row {
   display: grid;
   grid-template-columns: 7rem 1fr auto;
@@ -1092,6 +1116,7 @@ body:has(#am-write) #title-block-header { display: none; }
 .am-w-github { display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.5rem 0 0.25rem; padding: 0.75rem 1.4rem; font-size: 1.02rem; }
 .am-w-github svg { flex: none; }
 .am-w-profile { align-items: center !important; }
+.am-w-num input { width: 6.5rem; }
 .am-w-avatar { width: 3.5rem; height: 3.5rem; border-radius: 50%; object-fit: cover; border: 1px solid var(--am-rule-strong); }
 .am-w-pv-avatar { display: block; width: 9rem; height: 9rem; border-radius: 50%; object-fit: cover; margin: 0 auto 1rem; }
 .am-w-more { position: relative; }

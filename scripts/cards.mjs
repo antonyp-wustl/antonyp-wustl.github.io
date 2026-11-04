@@ -1,5 +1,5 @@
 // Draws a 1200×630 share image (the preview shown when a link is pasted into
-// Discord, iMessage, X, ...) for every post: _site/posts/<slug>/card.png.
+// Discord, iMessage, X, ...) for every post and lecture: _site/posts/<slug>/card.png.
 //
 //   quarto render && node scripts/cards.mjs          # every post
 //   node scripts/cards.mjs --home                    # regenerate assets/card.png (the site-wide card)
@@ -56,10 +56,11 @@ function readPost(file) {
   const h1 = (html.match(/<h1 class="title">([\s\S]*?)<\/h1>/) || [])[1];
   const title = h1 ? decode(h1.replace(/<[^>]+>/g, '')).trim() : meta('property', 'og:title').replace(/ – [^–]*$/, '');
   const categories = [...html.matchAll(/<div class="quarto-category">([^<]*)<\/div>/g)].map((m) => decode(m[1]));
-  const series = decode((html.match(/<div id="am-page"[^>]*data-series="([^"]*)"/) || [])[1] || '');
+  const pageData = (name) => decode((html.match(new RegExp(`<div id="am-page"[^>]*data-${name}="([^"]*)"`)) || [])[1] || '');
+  const series = pageData('series'), course = pageData('course'), lecture = pageData('lecture');
   const iso = meta('name', 'dcterms.date');
   const date = iso ? new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-  return { title, categories: [...new Set(categories)].slice(0, 3), series, date };
+  return { title, categories: [...new Set(categories)].slice(0, 3), series, course, lecture, date };
 }
 
 // ------------------------------------------------------------ the card
@@ -145,21 +146,26 @@ if (process.argv.includes('--home')) {
   }), out);
   console.log('cards: wrote assets/card.png');
 } else {
-  const postsDir = path.join(site, 'posts');
-  if (!fs.existsSync(postsDir)) { console.error('cards: run `quarto render` first.'); process.exit(1); }
+  if (!fs.existsSync(path.join(site, 'posts'))) { console.error('cards: run `quarto render` first.'); process.exit(1); }
   let n = 0;
-  for (const slug of fs.readdirSync(postsDir)) {
-    const file = path.join(postsDir, slug, 'index.html');
-    if (!fs.existsSync(file)) continue;
-    const post = readPost(file);
-    if (!post.title) continue;   // drafts render as an empty placeholder page
-    shoot(cardHtml({
-      title: post.title,
-      kicker: 'antony-mathematics',
-      chips: post.series ? [`Series: ${post.series}`, ...post.categories].slice(0, 3) : post.categories,
-      footer: [post.date, 'antonyp.com'].filter(Boolean).join('  ·  '),
-    }), path.join(postsDir, slug, 'card.png'));
-    n++;
+  for (const section of ['posts', 'lectures']) {
+    const dir = path.join(site, section);
+    if (!fs.existsSync(dir)) continue;
+    for (const slug of fs.readdirSync(dir)) {
+      const file = path.join(dir, slug, 'index.html');
+      if (!fs.existsSync(file)) continue;
+      const post = readPost(file);
+      if (!post.title) continue;   // drafts render as an empty placeholder page
+      const chips = post.course ? [post.lecture ? `Lecture ${post.lecture}` : 'Lecture', post.course]
+        : post.series ? [`Series: ${post.series}`, ...post.categories].slice(0, 3) : post.categories;
+      shoot(cardHtml({
+        title: post.title,
+        kicker: section === 'lectures' ? 'antony-mathematics · lectures' : 'antony-mathematics',
+        chips,
+        footer: [post.date, 'antonyp.com'].filter(Boolean).join('  ·  '),
+      }), path.join(dir, slug, 'card.png'));
+      n++;
+    }
   }
   console.log(`cards: drew ${n} share ${n === 1 ? 'image' : 'images'}`);
 }

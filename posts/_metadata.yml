@@ -21,6 +21,16 @@ code-tools: false
 # after rendering; set `image:` in a post to use your own picture instead.
 image: card.png
 
+# Files attached to a post (from the Write page's "Attach file") are published with it.
+resources:
+  - "*.pdf"
+  - "*.zip"
+  - "*.tex"
+  - "*.txt"
+  - "*.csv"
+  - "*.py"
+  - "*.ipynb"
+
 # Adds a "Cite this post" box (with BibTeX) at the end of each post
 citation: true
 appendix-cite-as: [display, bibtex]

@@ -38,6 +38,8 @@ website:
         href: notebook.qmd
       - text: Problems
         href: problems.qmd
+      - text: Lectures
+        href: lectures.qmd
       - text: Topics
         href: topics.qmd
       - text: Theorems

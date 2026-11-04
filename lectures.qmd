@@ -1,0 +1,17 @@
+---
+title: "Lectures"
+subtitle: "Lessons and lecture notes, grouped by course. Each one has a PDF version to print."
+page-layout: article
+toc: false
+listing:
+  id: lectures
+  contents: lectures
+  sort: "date desc"
+  template: _templates/lectures.ejs
+  date-format: iso
+  fields: [title, date, description, path]
+  feed:
+    title: "antony-mathematics · Lectures"
+    description: "Lectures and lessons"
+    type: full
+---

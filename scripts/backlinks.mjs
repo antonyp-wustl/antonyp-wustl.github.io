@@ -7,15 +7,16 @@ import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, posix } from 'node:path';
 
 const SITE = '_site';
-const KINDS = { posts: 'Post', notes: 'Note', problems: 'Problem' };
+const KINDS = { posts: 'Post', lectures: 'Lecture', notes: 'Note', problems: 'Problem' };
+const FOLDERS = new Set(['posts', 'lectures']);       // one folder per page, with index.html inside
 
-// Every page that can link or be linked: /posts/x/index.html, /notes/y.html, /problems/z.html
+// Every page that can link or be linked: /posts/x/index.html, /lectures/x/index.html, /notes/y.html, /problems/z.html
 const pages = [];
 for (const dir of Object.keys(KINDS)) {
   const base = join(SITE, dir);
   if (!existsSync(base)) continue;
   for (const name of readdirSync(base)) {
-    const rel = dir === 'posts' ? `${dir}/${name}/index.html` : name.endsWith('.html') ? `${dir}/${name}` : null;
+    const rel = FOLDERS.has(dir) ? `${dir}/${name}/index.html` : name.endsWith('.html') ? `${dir}/${name}` : null;
     if (!rel || name.startsWith('_') || !existsSync(join(SITE, rel))) continue;
     const html = readFileSync(join(SITE, rel), 'utf8');
     const title = (html.match(/<h1 class="title"[^>]*>([\s\S]*?)<\/h1>/)?.[1] || '').replace(/<[^>]+>/g, '').trim();

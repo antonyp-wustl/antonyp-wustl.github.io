@@ -1,0 +1,44 @@
+<%
+// The Lectures page: one block per course, lectures in order of their number;
+// lectures without a course come last, newest first. Dates arrive as YYYY-MM-DD.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const fmt = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d\d)-(\d\d)/); return m ? `${MONTHS[+m[2] - 1]} ${+m[3]}, ${m[1]}` : (iso || ''); };
+const num = (i) => (i.lecture != null && i.lecture !== '' && !isNaN(+i.lecture) ? +i.lecture : null);
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const groups = new Map();
+for (const item of items) {
+  const c = item.course ? String(item.course) : '';
+  if (!groups.has(c)) groups.set(c, []);
+  groups.get(c).push(item);
+}
+const latest = (list) => list.reduce((d, i) => (String(i.date) > d ? String(i.date) : d), '');
+const courses = [...groups.entries()].filter(([c]) => c)
+  .map(([c, list]) => [c, list.slice().sort((a, b) => (num(a) ?? 1e9) - (num(b) ?? 1e9) || String(a.date).localeCompare(String(b.date)))])
+  .sort((a, b) => latest(b[1]).localeCompare(latest(a[1])));
+const single = (groups.get('') || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+const row = (item, n) => `<li><a class="am-lec" href="${item.path}">
+      <span class="am-lec-num">${n ?? ''}</span>
+      <span class="am-lec-main"><strong class="am-lec-title">${item.title}</strong>${item.description ? `<span class="am-lec-desc">${item.description}</span>` : ''}</span>
+      <span class="am-lec-date">${fmt(item.date)}</span></a></li>`;
+%>
+```{=html}
+<div class="am-lectures">
+<% for (const [course, list] of courses) { %>
+<section class="am-course" id="course-<%- slug(course) %>">
+  <header class="am-course-head"><h2><%- course %></h2><span><%- list.length %> lecture<%- list.length === 1 ? '' : 's' %></span></header>
+  <ol class="am-course-list">
+  <% for (const item of list) { %><%= row(item, num(item)) %><% } %>
+  </ol>
+</section>
+<% } %>
+<% if (single.length) { %>
+<section class="am-course" id="course-other">
+  <header class="am-course-head"><h2><%- courses.length ? 'Other lectures' : 'All lectures' %></h2><span><%- single.length %> lecture<%- single.length === 1 ? '' : 's' %></span></header>
+  <ol class="am-course-list am-course-loose">
+  <% for (const item of single) { %><%= row(item, null) %><% } %>
+  </ol>
+</section>
+<% } %>
+<% if (!items.length) { %><p class="am-empty">No lectures yet. The first one is on its way.</p><% } %>
+</div>
+```

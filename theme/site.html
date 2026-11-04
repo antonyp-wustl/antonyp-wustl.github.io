@@ -7,8 +7,9 @@
   const clean = !!document.querySelector('meta[name="am-clean-urls"]');
   const href = (path) => (clean ? path.replace(/(^|\/)index\.html$/, '$1').replace(/\.html(?=$|[?#])/, '') : path);
   const sitePage = (name) => root + name + (clean ? '' : '.html');
-  const page = document.getElementById('am-page');          // posts and notes (added by theme/am.lua)
+  const page = document.getElementById('am-page');          // posts, lectures, notes, problems (added by theme/am.lua)
   const kind = page?.dataset.kind;
+  const longForm = kind === 'post' || kind === 'lecture';   // reading time, page tools, PDF link
   const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const fmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -537,7 +538,7 @@
   const subscribeBox = () => {
     const box = document.createElement('div');   // not <aside>: Quarto moves those into the margin
     box.className = 'am-subscribe';
-    const feeds = `<a href="${root}archive.xml">posts</a> · <a href="${root}notebook.xml">notebook</a> · <a href="${root}problems.xml">problems</a>`;
+    const feeds = `<a href="${root}archive.xml">posts</a> · <a href="${root}notebook.xml">notebook</a> · <a href="${root}problems.xml">problems</a> · <a href="${root}lectures.xml">lectures</a>`;
     box.innerHTML = BUTTONDOWN
       ? `<h2>Get new posts by email</h2>
         <p>One short email when something new goes up. Unsubscribe any time.</p>
@@ -647,7 +648,7 @@
 
   // -------------------------------------------------- reading time in the header
   const meta = document.querySelector('.quarto-title-meta');
-  if (meta && kind === 'post') {
+  if (meta && longForm) {
     const body = main.cloneNode(true);
     body.querySelectorAll('#title-block-header, #quarto-appendix, .katex-mathml, script, style, .listing-no-matching').forEach((n) => n.remove());
     const words = (body.textContent.match(/\S+/g) || []).length;
@@ -668,23 +669,33 @@
     date: document.querySelector('meta[name="dcterms.date"]')?.content || '',
     categories: [...document.querySelectorAll('.quarto-title .quarto-category')].map((c) => c.textContent.trim()),
     series: page.dataset.series || null,
+    course: page.dataset.course || null,
+    lecture: +page.dataset.lecture || null,
   };
   posts.push(me);
   posts.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (a.me ? -1 : b.me ? 1 : 0));
   const i = posts.indexOf(me);
 
-  // Series: a box under the title listing every part, oldest first.
-  const parts = me.series ? posts.filter((p) => p.series === me.series).reverse() : [];
+  // Series (posts) and courses (lectures): a box under the title listing every part.
+  // Series run oldest first; a course runs by lecture number.
+  const byNumber = (a, b) => (a.lecture ?? 1e9) - (b.lecture ?? 1e9) || (a.date || '').localeCompare(b.date || '');
+  const group = kind === 'lecture'
+    ? (me.course ? { name: me.course, kicker: 'Course', href: `${sitePage('lectures')}#course-${slug(me.course)}`, unit: 'Lecture',
+        parts: posts.filter((p) => p.course === me.course).sort(byNumber) } : null)
+    : (me.series ? { name: me.series, kicker: 'Series', href: `${sitePage('topics')}#series-${slug(me.series)}`, unit: 'Part',
+        parts: posts.filter((p) => p.series === me.series).reverse() } : null);
+  const parts = group ? group.parts : [];
   const part = parts.indexOf(me);
+  const partLabel = (p, k) => (kind === 'lecture' ? `Lecture ${p.lecture ?? k + 1}` : `Part ${k + 1}`);
   if (parts.length) {
     const box = document.createElement('nav');
     box.className = 'am-series';
-    box.setAttribute('aria-label', 'Series');
+    box.setAttribute('aria-label', group.kicker);
     box.innerHTML = `
       <div class="am-series-head">
-        <span class="am-series-kicker">Series</span>
-        <a class="am-series-name" href="${sitePage('topics')}#series-${slug(me.series)}">${esc(me.series)}</a>
-        <span class="am-series-count">Part ${part + 1} of ${parts.length}</span>
+        <span class="am-series-kicker">${group.kicker}</span>
+        <a class="am-series-name" href="${group.href}">${esc(group.name)}</a>
+        <span class="am-series-count">${partLabel(me, part)} of ${parts.length}</span>
       </div>
       <ol>${parts.map((p) => p.me
         ? `<li class="current" aria-current="page">${esc(p.title)}</li>`
@@ -694,8 +705,10 @@
   }
 
   if (posts.length > 1) {
-    const newer = posts[i - 1], older = posts[i + 1];
-    const nextPart = parts[part + 1];
+    // In a course, "previous" and "next" are the neighbouring lectures; otherwise by date.
+    const inCourse = kind === 'lecture' && parts.length > 1;
+    const newer = inCourse ? parts[part + 1] : posts[i - 1], older = inCourse ? parts[part - 1] : posts[i + 1];
+    const nextPart = inCourse ? null : parts[part + 1];
     const link = (p, cls, label) => p
       ? `<a class="${cls}" href="${p.path}"><small>${label}</small><strong>${esc(noteTitle(p))}</strong></a>` : '';
     const related = kind !== 'post' ? [] : posts
@@ -709,14 +722,16 @@
     end.setAttribute('aria-label', 'More posts');
     end.innerHTML =
       (nextPart ? `<a class="am-series-next" href="${nextPart.path}"><small>Next in ${esc(me.series)} · part ${part + 2} of ${parts.length}</small><strong>${esc(nextPart.title)}</strong></a>` : '') +
-      ((newer || older) ? `<div class="am-prevnext">${link(older, 'am-prev', '← Older')}${link(newer, 'am-next', 'Newer →')}</div>` : '') +
+      ((newer || older) ? `<div class="am-prevnext">${inCourse
+        ? link(older, 'am-prev', `← ${older ? partLabel(older, part - 1) : ''}`) + link(newer, 'am-next', `${newer ? partLabel(newer, part + 1) : ''} →`)
+        : link(older, 'am-prev', '← Older') + link(newer, 'am-next', 'Newer →')}</div>` : '') +
       (related.length ? `<div class="am-related"><h2>More on ${esc(me.categories.filter((c) => related.some(({ p }) => p.categories.includes(c)))[0] || 'this topic')}</h2><ul>${
         related.map(({ p }) => `<li><a href="${p.path}">${esc(p.title)}</a><span>${fmt(p.date)}</span></li>`).join('')
       }</ul></div>` : '');
     const appendix = main.querySelector('#quarto-appendix');
     if (end.innerHTML) main.insertBefore(end, appendix || null);
   }
-  if (kind === 'post') main.insertBefore(subscribeBox(), main.querySelector('#quarto-appendix'));
+  if (longForm) main.insertBefore(subscribeBox(), main.querySelector('#quarto-appendix'));
 
   // -------------------------------------------------- foldable proofs and solutions
   // Every proof gets a toggle. ::: {.proof collapse="true"} starts folded, solutions start
@@ -766,7 +781,7 @@
 
   // -------------------------------------------------- page tools: under the contents list, or under the title on phones
   const proofFolds = folds.filter((f) => !f.isSolution);
-  if (kind === 'post') {
+  if (longForm) {
     const toggles = [];
     const anyOpen = () => proofFolds.some((f) => !f.el.classList.contains('am-closed'));
     const sync = () => toggles.forEach((t) => { t.innerHTML = `${anyOpen() ? 'Hide' : 'Show'} all proofs <kbd>p</kbd>`; });
@@ -793,7 +808,7 @@
       // A typeset PDF, when CI built one (scripts/pdfs.mjs adds the meta tag).
       const pdf = document.querySelector('meta[name="am-pdf"]')?.content;
       if (pdf) tools.insertAdjacentHTML('beforeend', `<a class="am-edit-link" href="${esc(pdf)}" download>Download PDF (LaTeX)</a>`);
-      if (editHref) tools.insertAdjacentHTML('beforeend', `<a class="am-edit-link" href="${esc(editHref)}">Edit this post</a>`);
+      if (editHref) tools.insertAdjacentHTML('beforeend', `<a class="am-edit-link" href="${esc(editHref)}">Edit this ${kind}</a>`);
       return tools;
     };
     const toc = document.querySelector('nav#TOC');

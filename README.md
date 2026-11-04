@@ -6,8 +6,9 @@ My mathematics site, built with [Quarto](https://quarto.org). Posts are plain ma
 
 Go to **[/write](https://antonyp.com/write)** and write. The editor has a live preview with the site's own theorem boxes, maths and macros. Pressing **Publish** commits the file to this repo, and the site is updated about a minute and a half later. A note at the bottom right follows the rebuild and links to the page once it's live.
 
-- **New post / New note / New problem** start from blank. Two buttons: **Publish** puts it on the site, **Save draft** keeps it hidden. A live page has **Update**; to hide it again, use **Take off the site** in the ⋯ menu.
+- **New post / New lecture / New note / New problem** start from blank. Two buttons: **Publish** puts it on the site, **Save draft** keeps it hidden. A live page has **Update**; to hide it again, use **Take off the site** in the ⋯ menu.
 - **Already written in LaTeX?** Paste it in and it's converted: `\section`, theorem/lemma/definition environments with `\label` and `\ref`, `proof`, `equation`/`align`, `itemize`/`enumerate`, `\emph`, `\footnote`, `\href` and the rest. Ctrl+Z gives you the original back. **Import a file…** (or dropping a `.tex`, `.md` or `.qmd` file on the page) turns a whole file into a new post, title and abstract included. Pictures from the `.tex` need adding again.
+- **Lectures**: give each one a **Course** and a **Lecture no.** A new lecture picks up the course of your latest one and numbers itself next; clear the course for a one-off lesson. **Attach file** (posts and lectures) adds slides, handouts or any other file: it's saved next to the lecture and linked where your cursor is.
 - **The About page** is under **Pages** (or use **Edit this page** on the About page itself). Edit the text, press **Change picture…** for a new profile photo (saved in `assets/`), describe it for screen readers, and press **Update**.
 - **Scheduling**: pick a future date and the button turns into **Schedule for …**; the post goes live by itself that morning.
 - **Pictures**: drop them onto the text, paste them, or use **Picture**. Big photos are shrunk to 1600 px wide before uploading. They're saved next to the post.
@@ -64,6 +65,17 @@ The solution, folded until the reader opens it.
 ```
 
 Everything before the first hint is the statement. Readers can tick "I've solved this"; that's remembered in their own browser.
+
+## Lectures
+
+The **Lectures** tab lists lessons and lecture notes, grouped by course and in lecture order (`lectures.qmd`, drawn by `_templates/lectures.ejs`). Each lecture is a folder, `lectures/<slug>/index.qmd`, written exactly like a post (theorems, proofs, exercises, figures), with two extra lines in the front matter:
+
+```yaml
+course: "Elementary number theory"   # lectures with the same course are listed together
+lecture: 3                           # its number in the course
+```
+
+Each lecture page shows the course's full list of lectures, links to the previous and next lecture, a **Download PDF (LaTeX)** link with "Course · Lecture n" under the title, and a share image. Its theorems join the Theorems page. Handouts and slides (`.pdf`, `.zip`, `.tex`, …) put in the lecture's folder are published with it. Leave out `course:` for a one-off lesson. There's a feed at `/lectures.xml`.
 
 ## Writing a post
 
@@ -203,10 +215,11 @@ Every published post gets a **Download PDF (LaTeX)** link, typeset properly with
 | Path | What it is |
 |:--|:--|
 | `posts/` | One folder per post |
+| `lectures/` | One folder per lecture |
 | `notes/` | One file per note |
 | `problems/` | One file per problem |
 | `index.qmd` | Home page (prime-spiral hero, latest posts, topics) |
-| `archive.qmd`, `notebook.qmd`, `problems.qmd`, `topics.qmd`, `theorems.qmd`, `about.qmd` | The other pages |
+| `archive.qmd`, `notebook.qmd`, `problems.qmd`, `lectures.qmd`, `topics.qmd`, `theorems.qmd`, `about.qmd` | The other pages |
 | `write.qmd`, `assets/write.js`, `assets/latex.js` | The Write page, and its LaTeX converter |
 | `worker/` | The "Log in with GitHub" helper (a Cloudflare Worker, not part of the site) |
 | `publish`, `new-post`, `new-note` | One-command publishing and starting posts/notes (`.ps1` scripts; the `.cmd` twins run them from any terminal) |

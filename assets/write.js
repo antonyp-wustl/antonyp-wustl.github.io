@@ -212,11 +212,15 @@
   // Site pages the editor can open too. They have no date, categories or draft state.
   const PAGES = { 'about.qmd': 'About' };
   const isPage = (p) => p in PAGES;
-  const kindOf = (p) => (isPost(p) ? 'post' : isNote(p) ? 'note' : isPage(p) ? 'page' : 'problem');
+  const isLecture = (p) => /^lectures\/[^_/][^/]*\/index\.qmd$/.test(p);
+  const kindOf = (p) => (isPost(p) ? 'post' : isLecture(p) ? 'lecture' : isNote(p) ? 'note' : isPage(p) ? 'page' : 'problem');
+  // Posts and lectures are folders (index.qmd plus its pictures and handouts); the rest are single files.
+  const inFolder = (kind) => kind === 'post' || kind === 'lecture';
+  const SECTION = { post: 'posts', lecture: 'lectures', note: 'notes', problem: 'problems' };
   // How a picture is written in each kind of page (relative to the page's own folder).
-  const imgPrefix = (kind) => ({ post: '', page: 'assets/' }[kind] ?? 'media/');
+  const imgPrefix = (kind) => (inFolder(kind) ? '' : kind === 'page' ? 'assets/' : 'media/');
   // Where pictures go: next to a post, or in notes/media/ and problems/media/.
-  const mediaDir = (d) => (d.kind === 'post' ? (d.path ? d.path.replace(/index\.qmd$/, '') : null) : d.kind === 'page' ? 'assets/' : `${d.kind}s/media/`);
+  const mediaDir = (d) => (inFolder(d.kind) ? (d.path ? d.path.replace(/index\.qmd$/, '') : null) : d.kind === 'page' ? 'assets/' : `${d.kind}s/media/`);
   const readBlob = async (sha) => dec.decode(fromB64((await gh(`${R}/git/blobs/${sha}`)).content));
 
   async function loadEntries(force) {
@@ -225,14 +229,15 @@
     files = t.tree.filter((x) => x.type === 'blob').map((x) => ({ path: x.path, sha: x.sha }));
     let cache = {};
     try { cache = JSON.parse(local.get(KEY.cache)) || {}; } catch (_) { /* start fresh */ }
-    const wanted = files.filter((f) => isPost(f.path) || isNote(f.path) || isProblem(f.path) || isPage(f.path));
+    const wanted = files.filter((f) => isPost(f.path) || isLecture(f.path) || isNote(f.path) || isProblem(f.path) || isPage(f.path));
     const fresh = {};
     entries = await Promise.all(wanted.map(async (f) => {
       let m = cache[f.sha];
-      if (!m || !('v2' in m)) {
+      if (!m || !('v3' in m)) {
         const { meta } = splitDoc(await readBlob(f.sha));
-        m = { v2: 1, title: meta.title || '', date: meta.date || '', draft: meta.draft === true, scheduled: meta.scheduled === true,
-          categories: [].concat(meta.categories || []), series: meta.series || '', source: meta.source || '', difficulty: meta.difficulty || 0 };
+        m = { v3: 1, title: meta.title || '', date: meta.date || '', draft: meta.draft === true, scheduled: meta.scheduled === true,
+          categories: [].concat(meta.categories || []), series: meta.series || '', source: meta.source || '', difficulty: meta.difficulty || 0,
+          course: meta.course || '', lecture: +meta.lecture || 0 };
       }
       fresh[f.sha] = m;
       return { ...m, path: f.path, sha: f.sha, kind: kindOf(f.path) };
@@ -590,11 +595,13 @@
     const pending = new Set(drafts.map((d) => d.path).filter(Boolean));
     const item = (e) => `<li><a href="#edit=${encodeURIComponent(e.path)}">
         <span class="am-w-item-title">${e.title ? esc(e.title) : `<i>Note, ${esc(fmtDate(e.date))}</i>`}</span>
-        <span class="am-w-item-meta">${e.source ? esc(e.source) + ' · ' : ''}${esc(fmtDate(e.date))}${e.categories.length ? ' · ' + e.categories.map(esc).join(', ') : ''}
+        <span class="am-w-item-meta">${e.course ? esc(e.course) + (e.lecture ? ` · Lecture ${e.lecture}` : '') + ' · ' : ''}${e.source ? esc(e.source) + ' · ' : ''}${esc(fmtDate(e.date))}${e.categories.length ? ' · ' + e.categories.map(esc).join(', ') : ''}
           ${e.draft && e.scheduled ? `<span class="am-w-badge am-w-badge-warn">Goes live ${esc(fmtDate(e.date))}</span>` : e.draft ? '<span class="am-w-badge">Draft</span>' : ''}${pending.has(e.path) ? '<span class="am-w-badge am-w-badge-warn">Unsent changes</span>' : ''}</span>
       </a></li>`;
     const of = (k) => list.filter((e) => e.kind === k);
-    const NAMES = { post: 'post', note: 'note', problem: 'problem' };
+    const NAMES = { post: 'post', lecture: 'lecture', note: 'note', problem: 'problem' };
+    // Lectures: grouped by course, in lecture order; ones without a course last.
+    const lectures = of('lecture').sort((a, b) => (a.course || '￿').localeCompare(b.course || '￿') || (a.lecture || 1e9) - (b.lecture || 1e9) || String(b.date).localeCompare(String(a.date)));
     const fresh = drafts.filter((d) => !d.path);
     show(`<div class="am-w-home">
       <header class="am-w-head">
@@ -602,6 +609,7 @@
           <p class="am-w-build" data-build hidden></p></div>
         <div class="am-w-head-actions">
           <a class="am-button" href="#new=post">New post</a>
+          <a class="am-button am-button-ghost" href="#new=lecture">New lecture</a>
           <a class="am-button am-button-ghost" href="#new=note">New note</a>
           <a class="am-button am-button-ghost" href="#new=problem">New problem</a>
           <button type="button" class="am-button am-button-ghost" data-act="import" title="Turn a .tex, .md or .qmd file into a new post (or drop one anywhere on this page)">Import a file…</button>
@@ -613,6 +621,7 @@
         <span class="am-w-item-title">${esc(d.meta?.title || 'Untitled ' + NAMES[d.kind])}</span>
         <span class="am-w-item-meta">${NAMES[d.kind][0].toUpperCase() + NAMES[d.kind].slice(1)} · saved on this device ${esc(ago(d.savedAt))}</span></a></li>`).join('')}</ul></section>` : ''}
       <section><h2>Posts</h2><ul class="am-w-list">${of('post').map(item).join('') || '<li class="am-w-empty">No posts yet.</li>'}</ul></section>
+      <section><h2>Lectures</h2><ul class="am-w-list">${lectures.map(item).join('') || '<li class="am-w-empty">No lectures yet.</li>'}</ul></section>
       <section><h2>Notebook</h2><ul class="am-w-list">${of('note').map(item).join('') || '<li class="am-w-empty">No notes yet.</li>'}</ul></section>
       <section><h2>Problems</h2><ul class="am-w-list">${of('problem').map(item).join('') || '<li class="am-w-empty">No problems yet.</li>'}</ul></section>
       <section><h2>Pages</h2><ul class="am-w-list">${of('page').map((e) => `<li><a href="#edit=${encodeURIComponent(e.path)}">
@@ -661,9 +670,12 @@
       if (!saved) { location.hash = ''; return; }
       d = { ...saved, id: spec.draft, isNew: true };
     } else {
-      const kind = ['note', 'problem'].includes(spec.kind) ? spec.kind : 'post';
+      const kind = ['note', 'problem', 'lecture'].includes(spec.kind) ? spec.kind : 'post';
+      // A new lecture continues the course of the most recent one, numbered next.
+      const lastCourse = entries.find((e) => e.kind === 'lecture' && e.course)?.course || '';
       const meta = { post: { title: '', date: today(), categories: [], draft: true }, note: { date: today(), categories: [] },
-        problem: { title: '', date: today(), categories: [], source: '', difficulty: 2 } }[kind];
+        problem: { title: '', date: today(), categories: [], source: '', difficulty: 2 },
+        lecture: { title: '', date: today(), course: lastCourse || undefined, lecture: lastCourse ? nextLecture(lastCourse) : undefined, draft: true } }[kind];
       const body = kind === 'problem' ? 'State the problem here.\n\n::: {.hint}\nA first nudge.\n:::\n\n::: {.solution}\nThe full solution.\n:::\n' : '';
       d = { id: 'new-' + Date.now().toString(36), kind, path: '', isNew: true, meta, body };
     }
@@ -688,15 +700,18 @@
 
   const allCategories = () => [...new Set((entries || []).flatMap((e) => e.categories))].sort();
   const allSeries = () => [...new Set((entries || []).map((e) => e.series).filter(Boolean))].sort();
+  const allCourses = () => [...new Set((entries || []).map((e) => e.course).filter(Boolean))].sort();
+  const nextLecture = (course) => 1 + Math.max(0, ...(entries || []).filter((e) => e.kind === 'lecture' && e.course === course && (!doc || e.path !== doc.path)).map((e) => e.lecture || 0));
 
   function renderEditor() {
-    const d = doc, m = d.meta, post = d.kind === 'post', problem = d.kind === 'problem', page = d.kind === 'page';
+    const d = doc, m = d.meta, post = d.kind === 'post', problem = d.kind === 'problem', page = d.kind === 'page', lecture = d.kind === 'lecture';
+    const long = post || lecture;          // title, subtitle, description, its own folder
     const live = stateOf(d) === 'live';
     const picture = (src) => (!src ? '' : /^([a-z]+:|\/\/)/i.test(src) ? src : d.images.get(src.replace(/^assets\//, ''))?.url || RAW + src);
-    const slugged = d.isNew && (post || problem);
+    const slugged = d.isNew && (long || problem);
     const cats = new Set([].concat(m.categories || []));
     const chips = [...new Set([...allCategories(), ...cats])];
-    show(`<div class="am-w-editor${post ? '' : ' am-w-is-note'}">
+    show(`<div class="am-w-editor${long ? '' : ' am-w-is-note'}">
       <div class="am-w-top">
         <a class="am-w-link" href="#">← All writing</a>
         <span class="am-w-status" aria-live="polite" data-status></span>
@@ -718,8 +733,8 @@
 
       <div class="am-w-fields">
         <input class="am-w-title" data-field="title" placeholder="${d.kind === 'note' ? 'Title (optional for notes)' : problem ? 'Problem name' : 'Title'}" value="${esc(m.title || '')}" aria-label="Title">
-        ${post ? `<input class="am-w-subtitle" data-field="subtitle" placeholder="Subtitle (optional)" value="${esc(m.subtitle || '')}" aria-label="Subtitle">
-        <textarea class="am-w-desc" data-field="description" rows="2" placeholder="One or two sentences for the home page and the archive" aria-label="Description">${esc(m.description || '')}</textarea>` : ''}
+        ${long ? `<input class="am-w-subtitle" data-field="subtitle" placeholder="Subtitle (optional)" value="${esc(m.subtitle || '')}" aria-label="Subtitle">
+        <textarea class="am-w-desc" data-field="description" rows="2" placeholder="${lecture ? 'One or two sentences for the Lectures page: what this lecture covers' : 'One or two sentences for the home page and the archive'}" aria-label="Description">${esc(m.description || '')}</textarea>` : ''}
         ${page ? `<div class="am-w-row am-w-profile">
           ${m.image ? `<img class="am-w-avatar" src="${esc(picture(m.image))}" alt="">` : ''}
           <label class="am-w-grow">Picture description<input data-field="image-alt" value="${esc(m['image-alt'] || '')}" placeholder="What the picture shows, for screen readers"></label>
@@ -727,13 +742,15 @@
           <input type="file" accept="image/*" hidden data-profile>
         </div>` : `<div class="am-w-row">
           <label title="Pick a future date to have it go live by itself that morning">Date<input type="date" data-field="date" value="${esc(m.date || today())}"></label>
+          ${lecture ? `<label class="am-w-grow">Course<input data-field="course" list="am-w-courses" value="${esc(m.course || '')}" placeholder="e.g. Elementary number theory (or leave empty)"><datalist id="am-w-courses">${allCourses().map((s) => `<option value="${esc(s)}">`).join('')}</datalist></label>
+          <label class="am-w-num">Lecture no.<input type="number" min="1" step="1" data-field="lecture" value="${esc(m.lecture || '')}" placeholder="—"></label>` : ''}
           ${post ? `<label>Series<input data-field="series" list="am-w-series" value="${esc(m.series || '')}" placeholder="none"><datalist id="am-w-series">${allSeries().map((s) => `<option value="${esc(s)}">`).join('')}</datalist></label>` : ''}
           ${problem ? `<label>Source<input data-field="source" value="${esc(m.source || '')}" placeholder="IMO 2019 P1, Putnam 2003 A2…"></label>
           <label>Difficulty<select data-field="difficulty">${[1, 2, 3, 4, 5].map((n) => `<option value="${n}"${+m.difficulty === n ? ' selected' : ''}>${n} · ${['warm-up', 'easy', 'medium', 'hard', 'very hard'][n - 1]}</option>`).join('')}</select></label>` : ''}
-          ${slugged ? `<label class="am-w-grow">Address<span class="am-w-addr">/${post ? 'posts' : 'problems'}/<input data-field="slug" value="${esc(d.slug || slugify(m.title || ''))}" spellcheck="false" placeholder="from-the-title">${post ? '/' : ''}</span></label>` : ''}
+          ${slugged ? `<label class="am-w-grow">Address<span class="am-w-addr">/${SECTION[d.kind]}/<input data-field="slug" value="${esc(d.slug || slugify(m.title || ''))}" spellcheck="false" placeholder="from-the-title">${long ? '/' : ''}</span></label>` : ''}
           ${live ? `<label class="am-w-check"><input type="checkbox" data-field="revised"${m['date-modified'] === today() ? ' checked' : ''}>Mark as revised today</label>` : ''}
         </div>
-        <div class="am-w-cats" role="group" aria-label="Categories">
+        <div class="am-w-cats" role="group" aria-label="Categories"${lecture ? ' hidden' : ''}>
           <span class="am-w-cats-label">Categories</span>
           ${chips.map((c) => `<button type="button" class="am-chip${cats.has(c) ? ' active' : ''}" data-cat="${esc(c)}" aria-pressed="${cats.has(c)}">${esc(c)}</button>`).join('')}
           <input data-field="newcat" placeholder="+ new category" aria-label="Add a category">
@@ -768,8 +785,10 @@
             <span class="am-w-sep"></span>
             <button type="button" data-md="image" title="Add a picture (or drop / paste one)">Picture</button>
             <input type="file" accept="image/*" multiple hidden data-file>
+            ${long ? `<button type="button" data-md="attach" title="Attach slides, a handout or any other file (PDF, .tex, .zip…): it's published next to this ${d.kind} and linked here">Attach file</button>
+            <input type="file" multiple hidden data-attach>` : ''}
           </div>
-          <textarea data-field="body" spellcheck="true" placeholder="${post ? 'Start writing. Maths goes between $ signs: $e^{i\\pi} + 1 = 0$.' : problem ? 'The statement, then hints, then the solution.' : 'A quick thought, a neat proof, a problem…'}" aria-label="Text">${esc(d.body)}</textarea>
+          <textarea data-field="body" spellcheck="true" placeholder="${lecture ? 'The lecture notes. Maths goes between $ signs; theorems, proofs and exercises work as in posts. Attach slides or handouts from the toolbar.' : post ? 'Start writing. Maths goes between $ signs: $e^{i\\pi} + 1 = 0$.' : problem ? 'The statement, then hints, then the solution.' : 'A quick thought, a neat proof, a problem…'}" aria-label="Text">${esc(d.body)}</textarea>
           <div class="am-w-drop" hidden>Drop pictures, or a .tex or .md file</div>
         </div>
         <article class="am-w-preview" aria-label="Preview">
@@ -784,7 +803,7 @@
     katexReady.then(updatePreview);
   }
 
-  const liveUrl = (path) => LIVE + (isPost(path) ? path.replace(/index\.qmd$/, '') : path.replace(/\.qmd$/, ''));
+  const liveUrl = (path) => LIVE + (inFolder(kindOf(path)) ? path.replace(/index\.qmd$/, '') : path.replace(/\.qmd$/, ''));
   const setStatus = (text, cls = '') => { const el = $('[data-status]'); if (el) { el.textContent = text; el.className = 'am-w-status ' + cls; } };
   const isFuture = (iso) => !!iso && iso > today();
   // Where a page stands on GitHub (not counting unsent edits): new, draft, scheduled or live.
@@ -812,10 +831,14 @@
     const d = doc, m = { ...d.meta };
     const val = (f) => $(`[data-field=${f}]`)?.value.trim();
     m.title = val('title') || undefined;
-    if (d.kind === 'post') {
+    if (inFolder(d.kind)) {
       m.subtitle = val('subtitle') || undefined;
       m.description = val('description') || undefined;
-      m.series = val('series') || undefined;
+    }
+    if (d.kind === 'post') m.series = val('series') || undefined;
+    if (d.kind === 'lecture') {
+      m.course = val('course') || undefined;
+      m.lecture = Math.round(+val('lecture')) || undefined;
     }
     if (d.kind === 'problem') {
       m.source = val('source') || undefined;
@@ -828,7 +851,7 @@
       return d;
     }
     m.date = val('date') || today();
-    m.categories = $$('.am-w-cats .am-chip.active').map((b) => b.dataset.cat);
+    if (d.kind !== 'lecture') m.categories = $$('.am-w-cats .am-chip.active').map((b) => b.dataset.cat);
     // Publishing with a future date schedules it: kept as a draft until the daily
     // rebuild (scripts/schedule.mjs) sees the date arrive and publishes it.
     if (target) {
@@ -858,7 +881,7 @@
   function updatePreview() {
     if (!doc) return;
     const d = collect();
-    const dir = d.kind === 'post' ? (d.isNew ? '' : d.path.replace(/index\.qmd$/, '')) : d.kind === 'page' ? '' : `${d.kind}s/`;
+    const dir = inFolder(d.kind) ? (d.isNew ? '' : d.path.replace(/index\.qmd$/, '')) : d.kind === 'page' ? '' : `${d.kind}s/`;
     const resolveImg = (href) => {
       if (/^([a-z]+:|\/\/|\/)/i.test(href)) return href;
       const local = d.images.get(href.slice(href.startsWith(imgPrefix(d.kind)) ? imgPrefix(d.kind).length : 0));
@@ -874,7 +897,7 @@
       head.innerHTML = d.kind === 'page' ? `${d.meta.image ? `<img class="am-w-pv-avatar" src="${esc(resolveImg(d.meta.image))}" alt="${esc(d.meta['image-alt'] || '')}">` : ''}
         <h1 class="title">${esc(title)}</h1>` : `<h1 class="title">${renderQmd(title, resolveImg).replace(/^<p>|<\/p>\s*$/g, '')}</h1>
         ${d.meta.subtitle ? `<p class="subtitle lead">${renderQmd(d.meta.subtitle, resolveImg).replace(/^<p>|<\/p>\s*$/g, '')}</p>` : ''}
-        <p class="am-w-pv-meta">${d.meta.source ? `<span class="am-problem-source">${esc(d.meta.source)}</span>` : ''}
+        <p class="am-w-pv-meta">${d.meta.course || d.meta.lecture ? `<span class="am-problem-source">${esc([d.meta.course, d.meta.lecture && `Lecture ${d.meta.lecture}`].filter(Boolean).join(' · '))}</span>` : ''}${d.meta.source ? `<span class="am-problem-source">${esc(d.meta.source)}</span>` : ''}
           ${lvl ? `<span class="am-level">${'<i class="on"></i>'.repeat(lvl)}${'<i></i>'.repeat(5 - lvl)}</span>` : ''}
           ${esc(fmtDate(d.meta.date))}${(d.meta.categories || []).map((c) => ` <span class="am-chip">${esc(c)}</span>`).join('')}</p>`;
       body.innerHTML = renderQmd(d.body, resolveImg) || '<p class="am-w-empty">The preview shows up here.</p>';
@@ -927,6 +950,7 @@
     hint: () => insertBlock('::: {.hint}\nA nudge.\n:::', 'A nudge.'),
     solution: () => insertBlock('::: {.solution}\nThe full solution.\n:::', 'The full solution.'),
     image: () => $('[data-file]').click(),
+    attach: () => $('[data-attach]').click(),
   };
   function env(type) {
     insertBlock(`::: {#${type}-label}\nStatement.\n:::`, 'label');
@@ -979,6 +1003,24 @@
       const note = f !== original ? [`Picture shrunk from ${mb(original.size)} to ${mb(f.size)}`, 'am-w-status-ok']
         : f.size > 3e6 ? [`That picture is ${mb(f.size)}. Smaller files load faster.`, 'am-w-status-warn'] : null;
       if (note) setTimeout(() => setStatus(...note), 900);
+    }
+  }
+
+  // ---- attachments (slides, handouts…): saved next to the post or lecture and linked from the text
+  async function addAttachments(list) {
+    for (const f of list) {
+      if (f.size > 50e6) { setStatus(`${f.name} is over 50 MB, too big to attach. Link to it from somewhere else instead.`, 'am-w-status-bad'); continue; }
+      const ext = (f.name.match(/\.([a-z0-9]+)$/i)?.[1] || 'bin').toLowerCase();
+      const stem = f.name.replace(/\.[^.]+$/, '');
+      let name = `${slugify(stem) || 'file'}.${ext}`;
+      const dir = mediaDir(doc);
+      for (let n = 2; doc.images.has(name) || name === 'index.qmd' || (dir && files.some((x) => x.path === dir + name)); n++) name = name.replace(/(-\d+)?\.(\w+)$/, `-${n}.$2`);
+      doc.images.set(name, { b64: toB64(new Uint8Array(await f.arrayBuffer())), url: URL.createObjectURL(f) });
+      const ta = $('[data-field=body]');
+      ta.focus();
+      ta.setSelectionRange(ta.selectionEnd, ta.selectionEnd);
+      insert('[', `](${name})`, `${stem.replace(/[-_]+/g, ' ')} (${ext.toUpperCase()})`);
+      setTimeout(() => setStatus(`${f.name} will be published with this ${doc.kind} when you save.`, 'am-w-status-ok'), 900);
     }
   }
 
@@ -1049,7 +1091,6 @@
     // Ctrl+S keeps it where it is: live pages stay live, drafts stay drafts.
     target ||= ['live', 'scheduled'].includes(stateOf(doc)) ? 'live' : 'draft';
     const d = collect(target);
-    const post = d.kind === 'post';
     if (d.kind !== 'note' && !d.meta.title) { setStatus(`Give the ${d.kind} a title first`, 'am-w-status-bad'); $('[data-field=title]').focus(); return; }
     if (!d.body.trim()) { setStatus('There’s nothing to save yet', 'am-w-status-bad'); return; }
     if (!d.isNew && joinDoc(d.meta, d.body) === d.original && ![...d.images.values()].some((i) => i.b64)) {
@@ -1064,10 +1105,11 @@
       await loadEntries(true);
       let path = d.path;
       if (d.isNew) {
-        if (post) {
+        if (inFolder(d.kind)) {
           if (!d.slug) throw new Error('The address can’t be empty.');
-          path = `posts/${d.slug}/index.qmd`;
-          if (files.some((f) => f.path.startsWith(`posts/${d.slug}/`))) throw new Error(`There’s already a post at /posts/${d.slug}/. Change the address.`);
+          const folder = `${SECTION[d.kind]}/${d.slug}/`;
+          path = folder + 'index.qmd';
+          if (files.some((f) => f.path.startsWith(folder))) throw new Error(`There’s already a ${d.kind} at /${folder}. Change the address.`);
         } else if (d.kind === 'problem') {
           if (!d.slug) throw new Error('The address can’t be empty.');
           path = `problems/${d.slug}.qmd`;
@@ -1120,7 +1162,7 @@
     try {
       setStatus('Deleting…');
       await loadEntries(true);
-      const gone = isPost(d.path) ? files.filter((f) => f.path.startsWith(d.path.replace(/index\.qmd$/, ''))) : files.filter((f) => f.path === d.path);
+      const gone = inFolder(d.kind) ? files.filter((f) => f.path.startsWith(d.path.replace(/index\.qmd$/, ''))) : files.filter((f) => f.path === d.path);
       const { commit } = await commitFiles(`Delete: ${title}`, gone.map((f) => ({ path: f.path, delete: true })));
       local.del(KEY.draft + d.id);
       doc = null;
@@ -1251,6 +1293,12 @@
       if (s) s.value = slugify(e.target.value);
     }
     if (f === 'slug') doc.slugTouched = true;
+    if (f === 'lecture') doc.numberTouched = true;
+    // Picking a course numbers a new lecture after the last one in it.
+    if (f === 'course' && doc.isNew && !doc.numberTouched) {
+      const n = $('[data-field=lecture]'), course = e.target.value.trim();
+      if (n) n.value = course ? nextLecture(course) : '';
+    }
     if (f === 'date') syncSaveButton();
     changed();
   });
@@ -1261,6 +1309,7 @@
     if (t.dataset.file !== undefined && t.files?.length) { addImages([...t.files]); t.value = ''; }
     if (t.dataset.import !== undefined && t.files?.length) { importFile(t.files[0]); t.value = ''; }
     if (t.dataset.profile !== undefined && t.files?.length) { setProfilePicture(t.files[0]); t.value = ''; }
+    if (t.dataset.attach !== undefined && t.files?.length) { addAttachments([...t.files]); t.value = ''; }
     if (t.dataset.field === 'revised') changed();
   });
   host.addEventListener('keydown', (e) => {
