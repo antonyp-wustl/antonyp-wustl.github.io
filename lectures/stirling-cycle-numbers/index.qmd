@@ -1,0 +1,15 @@
+---
+title: Stirling Cycle Numbers
+subtitle: Referred to as Stirling Numbers of the First Kind
+description: This lecture covers the theory of permutations and their cyclical properties.
+date: 2026-11-03
+draft: true
+course: Combinatorics
+lecture: 1
+---
+
+To inspire this lecture, let us ask a question.
+
+Q: Suppose we have $n$ people with $k$ identical round tables, where each table cannot be left empty. How many ways can you arrange the seating for $n$ people to $k$ tables, where we only count the arrangements in which some person has a different neighbor than previous arrangements? If we only have one table, we know the answer to be $(n-1)!$. 
+
+Let us define this number to be the Stirling Cycle Number, denoted as $[^n_k]$ or $c(n,k)$. This number is also referred to as the **Stirling numbers of the first kind**.
