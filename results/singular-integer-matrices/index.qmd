@@ -1,0 +1,64 @@
+---
+title: "How Often Is a Random Integer Matrix Singular?"
+subtitle: "Exact counts for 2 × 2, a proved asymptotic with explicit constant for 3 × 3, a numerically identified 4 × 4 constant, and a conjectured second-order term"
+description: "The chance that a random 3 × 3 matrix with entries up to N has determinant zero is about 6.6461 log N / N³, and the constant has a closed form."
+abstract: "Fill an $n \\times n$ matrix with independent entries drawn uniformly from $\\{1, \\dots, N\\}$. How likely is it to be singular? We study the regime of fixed $n$ and growing $N$. For $n = 3$ we prove that $S_3(N) = C_3 N^6 \\log N + O(N^6)$ with $C_3 = 15(12 - \\pi^2)/(4\\zeta(3)) \\approx 6.6461$, show that the constant is twice the density at $0$ of the determinant of a random matrix with uniform $[0,1]$ entries, identify numerically a closed form for the $4 \\times 4$ constant, and conjecture the second-order term."
+date: 2026-10-02
+categories: [Number Theory, Probability, Random Matrices]
+status: Preprint
+pdf: paper.pdf
+---
+
+Write $S_n(N)$ for the number of singular $n \times n$ matrices with entries in $\{1, \dots, N\}$, so that
+$$
+\Pr_N[\det M = 0] = \frac{S_n(N)}{N^{n^2}}.
+$$
+For continuous entries this probability is zero, and for a fixed alphabet such as $\{0, 1\}$ with $n$ growing it is the subject of deep work by Kahn–Komlós–Szemerédi, Tao–Vu and Tikhomirov. The paper looks at the opposite regime: $n$ fixed and $N \to \infty$. The idea throughout is to group singular matrices by the line (or plane) that contains their rows.
+
+## Main results
+
+::: {#prp-two-by-two}
+## The $2 \times 2$ count
+For every $N \ge 1$,
+$$
+S_2(N) = 2 \sum_{m=1}^{N} \varphi(m) \left\lfloor \frac{N}{m} \right\rfloor^2 - N^2,
+$$
+where $\varphi$ is Euler's totient function.
+:::
+
+The formula is equivalent to a gcd-sum formula already recorded in the OEIS (A134506). The paper adds a line-by-line proof that generalises to higher dimensions, and the explicit second-order constant
+$c_2 = \frac{12}{\pi^2}\left(2\gamma - \frac12 - \frac{\zeta'(2)}{\zeta(2)}\right) - 2 = -0.51131744\ldots$
+
+For $3 \times 3$, $S_3(N)$ splits exactly into a *parallel-pair* term and an *axis-plane* term, both of exact order $N^6$ with closed arithmetic forms, plus a *generic-plane* term that carries the difficulty.
+
+::: {#thm-main}
+## Main theorem
+$$
+S_3(N) = C_3\, N^6 \log N + O(N^6), \qquad C_3 = \frac{15\,(12 - \pi^2)}{4\,\zeta(3)} = 6.64609426967\ldots,
+$$
+so that $\Pr_N[\det M = 0] = C_3 \log N / N^3 + O(N^{-3})$.
+:::
+
+The proof follows Katznelson's plane-by-plane strategy and is elementary. The constant comes from an integral over plane sections of the unit cube, which equals twice the density at $0$ of the determinant of a random real $3 \times 3$ matrix with independent uniform $[0,1]$ entries. The same method predicts $C_n = (n-1)\, p_n(0)/\zeta(n)$ in every dimension, where $p_n$ is that density.
+
+::: {#cnj-four-by-four}
+## The $4 \times 4$ constant
+Identified numerically from more than 100 digits, but not proved:
+$$
+C_4 = \frac{135}{\pi^4}\left(\frac{1387213}{1458} - \frac{736}{243}\pi^2 - \frac{101434}{27}\zeta(3) + \frac{421696}{81}\log 2\right) = 19.7640630589\ldots
+$$
+:::
+
+::: {#cnj-second-order}
+## The second-order constant
+The limit $c_3 = \lim_{N \to \infty} \left( S_3(N)/N^6 - C_3 \log N \right)$ exists, and is given by a formula in a lattice-sum constant and an average over random lattices. Its value is
+$$
+c_3 = -2.7381 \pm 0.0006.
+$$
+:::
+
+The same formula reproduces $c_2$ exactly in dimension two, and the value of $c_3$ agrees with direct computations up to $N = 10^6$. The paper also gives a new $O(N^6)$ algorithm and the exact counts $S_3(N)$ for all $N \le 100$, which appear to be new.
+
+In short: the results for $n = 2$ and $n = 3$ are theorems, except the value of $c_3$, which is a conjecture. The closed form for $4 \times 4$ is a numerical identification.
+
+The full paper, with proofs, numerics and the table of $S_3(N)$, is the PDF linked above. It was developed with the help of an AI assistant, as described in its acknowledgments, and has not yet been refereed.
