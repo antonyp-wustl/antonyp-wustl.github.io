@@ -8,6 +8,12 @@ about:
   image-width: 14em
   image-shape: round
   links:
+    - icon: mortarboard
+      text: antonyp@wustl.edu
+      href: mailto:antonyp@wustl.edu
+    - icon: envelope
+      text: deriveintegr4te@gmail.com
+      href: mailto:deriveintegr4te@gmail.com
     - icon: github
       text: GitHub
       href: https://github.com/antonyp-wustl
